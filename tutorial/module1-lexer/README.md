@@ -138,7 +138,29 @@ Example: When you see `>`, you need to check if the next char is `=` to distingu
 - `>=` → GREATER_EQUAL
 
 ### 2. **Whitespace Handling**
-In AIP-160, whitespace is mostly insignificant (except inside strings). Skip it!
+In AIP-160, whitespace is mostly insignificant (except inside strings). The lexer handles whitespace differently depending on its state:
+
+**Normal State** (default):
+- Whitespace between tokens is **skipped** via `skipWhitespace()`
+- Acts as a separator: `age>18` and `age > 18` produce identical tokens
+
+**STRING State** (inside quotes):
+- Whitespace is **preserved** as part of the string content
+- `"hello world"` → STRING("hello world") with space intact
+
+```go
+// Normal state - whitespace skipped
+name = "John"
+  ↓
+IDENTIFIER("name"), EQUALS, STRING("John")
+
+// Inside string state - whitespace preserved
+"John Doe"
+  ↓
+STRING("John Doe")  ← Space kept!
+```
+
+This state-dependent handling is why `NextToken()` calls `skipWhitespace()` first, but `readString()` preserves all characters until the closing delimiter.
 
 ### 3. **String Literals**
 Strings can be delimited by `"` or `'`. You must:
@@ -254,65 +276,176 @@ Before moving to the next module, make sure you can:
 - [ ] Handle both `"string"` and `'string'` formats
 - [ ] All tests pass! ✅
 
-## ⚡ Hints
+## ❓ Common Questions & Pitfalls
+
+These are real questions from learners like you! Understanding these will save you debugging time.
 
 <details>
-<summary>Hint 1: Starting the NextToken() method</summary>
+<summary>Q: What is "IDENT" in the state machine diagram?</summary>
 
-Begin by skipping whitespace and checking for EOF:
+**A:** IDENT is short for **IDENTIFIER**. It's abbreviated for space in the diagram.
+
+When the lexer sees a letter or underscore, it enters the IDENT state and reads the complete identifier (e.g., `name`, `user_id`, `age`). After reading, it checks if it's a keyword like `AND` or a regular identifier.
+</details>
+
+<details>
+<summary>Q: Are digits considered IDENTifiers?</summary>
+
+**A:** **No!** It depends on what the token **starts with**:
+
+- `123abc` → Starts with digit → **NUMBER** state (may be invalid later)
+- `abc123` → Starts with letter → **IDENTIFIER** state → Valid identifier ✅
+- `_123` → Starts with underscore → **IDENTIFIER** state → Valid identifier ✅
+
+**Rule:** First character determines the token type. IDENTIFIERs can *contain* digits but can't *start* with them.
+</details>
+
+<details>
+<summary>Q: Is `readPosition` always 1 ahead of `position`?</summary>
+
+**A:** **Yes!** This invariant is maintained after every `readChar()` call:
+
 ```go
-func (l *Lexer) NextToken() Token {
-    l.skipWhitespace()
-    
-    if l.ch == 0 {
-        return Token{Type: EOF, Literal: ""}
-    }
-    
-    // Then check character type and handle accordingly
-}
+readPosition = position + 1
+```
+
+This lets you:
+- Know the **current** character (`position`)
+- **Peek** at the next character (`readPosition`) without advancing
+
+Example:
+```
+Input: "age"
+Start: position=0, readPosition=1, ch='a'
+After readChar(): position=1, readPosition=2, ch='g'
 ```
 </details>
 
 <details>
-<summary>Hint 2: Handling multi-character operators</summary>
+<summary>Q: Go strings vs bytes - Why can't I do `ident += l.input[l.position]`?</summary>
 
-Use `peekChar()` to look ahead without advancing:
+**A:** In Go, indexing a string returns a **byte**, not a string:
+
 ```go
-if l.ch == '>' {
-    if l.peekChar() == '=' {
-        // It's >=
-        ch := l.ch
-        l.readChar()
-        return Token{Type: GREATER_EQUAL, Literal: string(ch) + string(l.ch)}
-    }
-    // It's just >
-    return Token{Type: GREATER_THAN, Literal: string(l.ch)}
-}
+str := "hello"
+str[0]  // Returns byte 'h', not string "h"
+```
+
+**Solutions:**
+```go
+// ❌ Wrong: Can't concatenate byte to string
+ident += l.input[l.position]
+
+// ✅ Option 1: Convert byte to string
+ident += string(l.input[l.position])
+
+// ✅ Option 2: Use slicing (recommended - faster!)
+position := l.position
+// ... advance through identifier ...
+return l.input[position:l.position]
 ```
 </details>
 
 <details>
-<summary>Hint 3: Keywords vs Identifiers</summary>
+<summary>Q: Byte arithmetic mistake - Why is `>=` becoming a weird character?</summary>
 
-Create a keyword map:
+**A:** Common bug when building two-character operators:
+
 ```go
-var keywords = map[string]TokenType{
-    "AND": AND,
-    "OR":  OR,
-    "NOT": NOT,
-    // ... etc
+// ❌ WRONG: Byte arithmetic!
+literal := l.ch        // literal is a BYTE (ASCII value)
+literal += l.ch        // Adds ASCII values: 62 + 61 = 123 → '{'
+
+// ✅ CORRECT: String concatenation
+literal := string(l.ch)      // Convert to string first
+l.readChar()
+literal += string(l.ch)      // Now it's string concatenation
+// Result: ">=" ✅
+```
+
+**Remember:** Bytes are uint8 numbers. Adding them does arithmetic, not concatenation!
+</details>
+
+<details>
+<summary>Q: readString() - Why are quotes included in my string output?</summary>
+
+**A:** You need to advance past the closing quote **after** extracting the string:
+
+```go
+// When loop breaks, l.position is AT the closing quote
+for {
+    l.readChar()
+    if l.ch == delimiter || l.ch == 0 {
+        break  // ← l.position is AT the quote!
+    }
 }
 
-func lookupIdentifier(ident string) TokenType {
-    if tok, ok := keywords[strings.ToUpper(ident)]; ok {
-        return tok
+// ❌ Wrong: Next token will see the quote again!
+return l.input[position:l.position]
+
+// ✅ Correct: Save result, then advance past quote
+result := l.input[position:l.position]
+l.readChar()  // Move past closing quote
+return result
+```
+
+This ensures the next `NextToken()` call starts at the right position.
+</details>
+
+<details>
+<summary>Q: readNumber() - What if the number is malformed like "2e" or "3."?</summary>
+
+**A:** **The lexer doesn't validate!** Its job is to extract tokens, not validate them.
+
+```go
+// Just return whatever you read
+"2e"   → Token{Type: NUMBER, Literal: "2e"}
+"3."   → Token{Type: NUMBER, Literal: "3"}  (dot not consumed)
+```
+
+Validation happens later when **parsing or evaluating**:
+```go
+val, err := strconv.ParseFloat(token.Literal, 64)
+if err != nil {
+    return fmt.Errorf("invalid number: %s", token.Literal)
+}
+```
+
+**Principle:** Lexer extracts, Parser validates.
+</details>
+
+<details>
+<summary>Q: Empty string input - Will `New()` panic?</summary>
+
+**A:** Yes, if you directly access `input[0]`!
+
+```go
+// ❌ WRONG: Panics on empty input
+func New(input string) *Lexer {
+    return &Lexer{
+        input: input,
+        ch: input[0],  // ← Panic if input is ""
     }
-    return IDENTIFIER
+}
+
+// ✅ CORRECT: Let readChar() handle it
+func New(input string) *Lexer {
+    l := &Lexer{input: input}
+    l.readChar()  // Safely sets ch=0 if empty
+    return l
 }
 ```
 </details>
 
-## 📚 Additional Resources
+## 📚 Resources
+
+### Implementation Help
+
+**Need hints?** → [HINTS.md](HINTS.md) - Progressive hints for each function without spoiling the solution
+
+**Really stuck?** → [SOLUTION.md](SOLUTION.md) - Complete implementation with detailed explanations (try HINTS.md first!)
+
+### Additional Learning
 
 - [How Lexers Work](https://en.wikipedia.org/wiki/Lexical_analysis)
 - [State Machine Basics](https://en.wikipedia.org/wiki/Finite-state_machine)

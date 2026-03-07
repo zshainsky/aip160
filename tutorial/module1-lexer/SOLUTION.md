@@ -12,7 +12,72 @@ The lexer implementation follows this pattern:
 4. **Read full token** (may span multiple characters)
 5. **Return the token** and move to next
 
-## 💭 Progressive Hints
+## � Common Pitfalls (Learn from Others!)
+
+Before diving into hints, know these common mistakes that trip up learners:
+
+### 1. **Byte Arithmetic vs String Concatenation**
+```go
+// ❌ WRONG: Adds ASCII values!
+literal := l.ch        // byte: 62 for '>'
+literal += l.ch        // 62 + 61 = 123 = '{'
+
+// ✅ CORRECT: String concatenation
+literal := string(l.ch)
+literal += string(l.ch)
+```
+
+### 2. **Empty Input Panic**
+```go
+// ❌ WRONG: Panics if input is ""
+ch: input[0]
+
+// ✅ CORRECT: Use readChar() to handle it
+l := &Lexer{input: input}
+l.readChar()  // Sets ch=0 if empty
+```
+
+### 3. **Not Advancing Past Closing Quote**
+```go
+// ❌ WRONG: Next token sees quote again!
+return l.input[position:l.position]
+
+// ✅ CORRECT: Advance past closing delimiter
+result := l.input[position:l.position]
+l.readChar()  // Move to next character
+return result
+```
+
+### 4. **peekChar() Modifying State**
+```go
+// ❌ WRONG: Peek shouldn't change l.ch!
+func (l *Lexer) peekChar() byte {
+    if l.readPosition >= len(l.input) {
+        l.ch = 0  // ❌ Modifies state!
+    }
+    return l.input[l.readPosition]
+}
+
+// ✅ CORRECT: Just look, don't touch
+func (l *Lexer) peekChar() byte {
+    if l.readPosition >= len(l.input) {
+        return 0  // ✅ Return without modifying
+    }
+    return l.input[l.readPosition]
+}
+```
+
+### 5. **Forgetting LookupIdentifier() for Keywords**
+```go
+// ❌ WRONG: "AND" becomes IDENTIFIER
+return Token{Type: IDENTIFIER, Literal: l.readIdentifier()}
+
+// ✅ CORRECT: Check if it's a keyword
+identifier := l.readIdentifier()
+return Token{Type: LookupIdentifier(identifier), Literal: identifier}
+```
+
+## �💭 Progressive Hints
 
 ### Hint 1: Implementing `New()`
 

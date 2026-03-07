@@ -27,14 +27,14 @@ Learn how to break down a filter string like `name = "John" AND age > 25` into i
 
 Learn how to represent filter expressions as tree structures in memory. You'll design Go types for different expression nodes (comparisons, logical operators, etc.).
 
-- 📖 Coming after Module 1
+- 📖 [Start Module 2](module2-ast/README.md)
 
 ### Module 3: EBNF & Parser Design - ~2 hours
 **Goal**: Understand the AIP-160 grammar and plan the parser
 
 Learn to read EBNF grammar notation and translate grammar rules into parsing functions. You'll map the AIP-160 spec to code structure.
 
-- 📖 Coming after Module 2
+- 📖 [Start Module 3](module3-parser-design/README.md)
 
 ### Module 4: Building the Parser (Core) - ~2 hours
 **Goal**: Implement parsing for core operators

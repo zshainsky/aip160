@@ -318,7 +318,40 @@ The tree structure naturally encodes operator precedence:
 
 Notice how AND is deeper in the tree - it gets evaluated first!
 
-## 📝 Implementation Task
+## � Getting Started
+
+### Starting Your Implementation
+
+This module includes a starter file to help you begin:
+
+**Copy the starter file to begin:**
+```bash
+cp tutorial/module2-ast/ast_starter.go pkg/filter/ast/ast.go
+```
+
+The starter file includes:
+- ✅ All AST node struct definitions
+- ✅ Interface methods (`expressionNode()`, `TokenLiteral()`) already implemented
+- ✅ Example implementations (`Identifier`, `StringLiteral`)
+- 📝 TODO comments for the `String()` methods you need to implement
+
+**What you'll implement:**
+- `String()` methods for all remaining node types (8 methods total)
+- Simple formatting using `fmt.Sprintf()`
+
+### Testing as You Go
+
+Run tests to verify each implementation:
+```bash
+go test ./pkg/filter/ast -v
+```
+
+### If You Get Stuck
+
+- 💡 [HINTS.md](HINTS.md) - Patterns and examples for `String()` formatting
+- ✅ [SOLUTION.md](SOLUTION.md) - Complete reference implementation
+
+## �📝 Implementation Task
 
 Your task is to complete the AST node implementations in `pkg/filter/ast/ast.go`.
 

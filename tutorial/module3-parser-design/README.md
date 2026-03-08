@@ -501,7 +501,7 @@ Before moving to Module 4 (implementation), ensure you can:
 
 ### Implementation Help
 
-**Ready to implement?** → [Module 4: Parser Implementation](../module4-parser/README.md) (coming soon)
+**Ready to implement?** → [Module 4: Parser Implementation](../module4-parser-core/README.md)
 
 **Need hints for design?** → [HINTS.md](HINTS.md) - Design patterns and tips
 
@@ -517,6 +517,6 @@ Before moving to Module 4 (implementation), ensure you can:
 ---
 
 **Previous Module**: [Module 2: AST Design](../module2-ast/README.md)  
-**Next Module**: [Module 4: Parser Implementation](../module4-parser/README.md) (coming soon)
+**Next Module**: [Module 4: Parser Implementation](../module4-parser-core/README.md)
 
 **Note**: This module is primarily conceptual. Module 4 will be the hands-on implementation where you'll write the actual parser code!

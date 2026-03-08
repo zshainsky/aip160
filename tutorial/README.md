@@ -41,7 +41,7 @@ Learn to read EBNF grammar notation and translate grammar rules into parsing fun
 
 Write the parser functions for literals, comparisons, and logical operators. Handle operator precedence correctly (remember: OR before AND!).
 
-- 📖 Coming after Module 3
+- 📖 [Start Module 4](module4-parser-core/README.md)
 
 ### Module 5: Advanced Features - ~1.5 hours
 **Goal**: Add traversal, has operator, and wildcards

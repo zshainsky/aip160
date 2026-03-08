@@ -184,7 +184,42 @@ Numbers can be integers or floats:
 - `3.14` → FLOAT
 - `2.997e9` → FLOAT (with exponent)
 
-## 📝 Implementation Task
+## � Getting Started
+
+### Starting Your Implementation
+
+This module includes a starter file to help you begin:
+
+**Copy the starter file to begin:**
+```bash
+cp tutorial/module1-lexer/lexer_starter.go pkg/filter/lexer/lexer.go
+```
+
+The starter file includes:
+- ✅ Complete `Lexer` struct definition
+- ✅ Most of the `NextToken()` logic implemented
+- 📝 TODO comments marking areas you need to complete
+
+**What you'll implement:**
+- `readNumber()` method for parsing integers, floats, and scientific notation
+- Additional edge cases in `NextToken()` if any
+
+### Testing as You Go
+
+Run tests to verify your implementation:
+```bash
+go test ./pkg/filter/lexer -v
+```
+
+### If You Get Stuck
+
+Need a starting point? The starter file is already set up for you!
+
+Need more help?
+- 💡 [HINTS.md](HINTS.md) - Strategic hints without giving away solutions
+- ✅ [SOLUTION.md](SOLUTION.md) - Complete reference implementation
+
+## �📝 Implementation Task
 
 You'll implement two main components:
 

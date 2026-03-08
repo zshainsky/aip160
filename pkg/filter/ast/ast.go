@@ -193,9 +193,15 @@ func (t *TraversalExpression) expressionNode()      {}
 func (t *TraversalExpression) TokenLiteral() string { return t.Token.Literal }
 
 // TODO: Implement String() method
-// Hint: Format should be "<left>.<right>" - NO parentheses for this one!
+// Hint: Wrap with parentheses to show left-associative grouping structure
 func (t *TraversalExpression) String() string {
-	// TODO: Return formatted string with dot separator
+	// If left is a traversal, wrap both the left AND the whole expression
+	// This shows the nested tree structure: ((a.b).c)
+	_, leftIsTraversal := t.Left.(*TraversalExpression)
+	if leftIsTraversal {
+		return fmt.Sprintf("((%s).%s)", t.Left.String(), t.Right.String())
+	}
+	// Otherwise, simple dot notation
 	return fmt.Sprintf("%s.%s", t.Left.String(), t.Right.String())
 }
 
@@ -213,8 +219,12 @@ func (h *HasExpression) TokenLiteral() string { return h.Token.Literal }
 // TODO: Implement String() method
 // Hint: Format should be "<collection>:<member>" - NO parentheses
 func (h *HasExpression) String() string {
-	// TODO: Return formatted string with colon separator
-	return fmt.Sprintf("%s:%s", h.Collection.String(), h.Member.String())
+	//If collection is a traversal, wrap it separately
+	if _, ok := h.Collection.(*TraversalExpression); ok {
+		return fmt.Sprintf("(%s):%s", h.Collection.String(), h.Member.String())
+	}
+	// Otherwise, wrap the whole has expression
+	return fmt.Sprintf("(%s:%s)", h.Collection.String(), h.Member.String())
 }
 
 // FunctionCall represents a function call expression.

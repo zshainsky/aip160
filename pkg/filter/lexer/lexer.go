@@ -63,6 +63,8 @@ func (l *Lexer) NextToken() Token {
 		tok = &Token{Type: LPAREN, Literal: string(l.ch)}
 	case ')':
 		tok = &Token{Type: RPAREN, Literal: string(l.ch)}
+	case ',':
+		tok = &Token{Type: COMMA, Literal: string(l.ch)}
 	case '.':
 		tok = &Token{Type: DOT, Literal: string(l.ch)}
 	case ':':

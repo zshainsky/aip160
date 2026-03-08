@@ -16,33 +16,34 @@ const (
 	// Special tokens
 	ILLEGAL TokenType = "ILLEGAL" // Unknown token
 	EOF     TokenType = "EOF"     // End of file
-	
+
 	// Identifiers and literals
 	IDENTIFIER TokenType = "IDENTIFIER" // field names: name, age, user_id
 	STRING     TokenType = "STRING"     // "hello", 'world'
 	NUMBER     TokenType = "NUMBER"     // 42, 3.14, 2.997e9
-	
+
 	// Operators
-	EQUALS          TokenType = "="  // =
-	NOT_EQUALS      TokenType = "!=" // !=
-	LESS_THAN       TokenType = "<"  // <
-	LESS_EQUAL      TokenType = "<=" // <=
-	GREATER_THAN    TokenType = ">"  // >
-	GREATER_EQUAL   TokenType = ">=" // >=
-	HAS             TokenType = ":"  // : (has operator)
-	
+	EQUALS        TokenType = "="  // =
+	NOT_EQUALS    TokenType = "!=" // !=
+	LESS_THAN     TokenType = "<"  // <
+	LESS_EQUAL    TokenType = "<=" // <=
+	GREATER_THAN  TokenType = ">"  // >
+	GREATER_EQUAL TokenType = ">=" // >=
+	HAS           TokenType = ":"  // : (has operator)
+
 	// Logical operators
 	AND TokenType = "AND" // AND
 	OR  TokenType = "OR"  // OR
 	NOT TokenType = "NOT" // NOT
-	
+
 	// Delimiters
-	DOT        TokenType = "."  // . (traversal)
-	LPAREN     TokenType = "("  // (
-	RPAREN     TokenType = ")"  // )
-	ASTERISK   TokenType = "*"  // * (wildcard)
-	MINUS      TokenType = "-"  // - (negation operator)
-	
+	DOT      TokenType = "." // . (traversal)
+	LPAREN   TokenType = "(" // (
+	RPAREN   TokenType = ")" // )
+	COMMA    TokenType = "," // , (function argument separator)
+	ASTERISK TokenType = "*" // * (wildcard)
+	MINUS    TokenType = "-" // - (negation operator)
+
 	// Keywords/Literals
 	TRUE  TokenType = "TRUE"  // true
 	FALSE TokenType = "FALSE" // false

@@ -177,11 +177,14 @@ func (p *Parser) parseComparison() ast.Expression {
 	//   - If yes: save operator, advance, get right value,
 	//     create ComparisonExpression node, return it
 	//   - If no: return just the left value (allows bare identifiers)
-	left := p.parseValue()
+
+	// TODO (Module 5): For proper precedence, call parseHasExpression() instead of parseValue()
+	// Has operator sits between comparison and value in precedence
+	left := p.parseHasExpression()
 	if p.isComparisonOperator(p.currentToken.Type) {
 		opToken := p.currentToken
 		p.nextToken()
-		right := p.parseValue()
+		right := p.parseHasExpression()
 
 		return &ast.ComparisonExpression{
 			Token:    opToken,
@@ -296,11 +299,117 @@ func (p *Parser) parseNull() ast.Expression {
 func (p *Parser) parseIdentifier() ast.Expression {
 	// (Task 3): Implement identifier parsing
 	// Create Identifier with currentToken and its Literal value
-	lit := &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal}
+	identToken := p.currentToken
+	identLiternal := p.currentToken.Literal
 	// Call nextToken() to advance
 	p.nextToken()
-	// Return the Identifier
-	return lit
+
+	// TODO (Module 5 - Task 3): Add function call detection
+	// Check if current token (after advancing past identifier) is LPAREN
+	// If yes, this is a function call - call parseFunctionCall helper
+	// Pass the saved identifier token and value to the helper
+	// Function calls bind tightest, so check this BEFORE checking for DOT
+	if p.currentTokenIs(lexer.LPAREN) {
+		return p.parseFunctionCall(identToken, identLiternal)
+	}
+
+	// TODO (Module 5 - Task 1): Add field traversal support
+	// After handling function calls, check if current token is DOT
+	// If yes, enter loop to build TraversalExpression chain
+	var left ast.Expression = &ast.Identifier{
+		Token: identToken,
+		Value: identLiternal,
+	}
+	for p.currentTokenIs(lexer.DOT) {
+		dotToken := p.currentToken
+		p.nextToken()
+
+		// Expect an identifier after the dot
+		if !p.currentTokenIs(lexer.IDENTIFIER) {
+			p.errors = append(p.errors, fmt.Sprintf("expected identifier after '.', got %s", p.currentToken.Type))
+			return left
+		}
+
+		right := &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal}
+		p.nextToken()
+
+		left = &ast.TraversalExpression{
+			Token: dotToken,
+			Left:  left,
+			Right: right,
+		}
+	}
+
+	// Return the built expression (either simple Identifier or TraversalExpression chain)
+	return left
+}
+
+// TODO (Module 5 - Task 2): Implement parseHasExpression
+// This function handles the has operator (:) for collection membership
+// Should be called from parseComparison instead of parseValue
+// Pattern similar to parseComparison:
+//   - Get left from parseValue()
+//   - Check if current token is HAS
+//   - If yes: save token, advance, get right from parseValue(), create HasExpression
+//   - If no: return left as-is
+//
+// Remember: both sides can be complex (traversals, etc.)
+func (p *Parser) parseHasExpression() ast.Expression {
+	left := p.parseValue()
+	if p.currentTokenIs(lexer.HAS) {
+		hasToken := p.currentToken
+		p.nextToken() // consume ':'
+		right := p.parseValue()
+		return &ast.HasExpression{
+			Token:      hasToken,
+			Collection: left,
+			Member:     right,
+		}
+	}
+
+	return left
+}
+
+// TODO (Module 5 - Task 3): Implement parseFunctionCall
+// This helper parses function calls: identifier followed by (arguments)
+// Parameters: identToken (saved token), functionName (string)
+// Steps:
+//   - Advance past LPAREN (current token when called)
+//   - Check for empty args (immediate RPAREN)
+//   - Parse first argument using parseExpression()
+//   - Loop while current is COMMA: advance, parse next expression
+//   - Expect RPAREN at end
+//   - Return FunctionCall with saved token, function name, and arguments slice
+// See HINTS.md for argument parsing pattern
+
+func (p *Parser) parseFunctionCall(identToken lexer.Token, functionName string) ast.Expression {
+	p.nextToken() // advanced past LPAREN
+	if p.currentTokenIs(lexer.RPAREN) {
+		// empty args
+		p.nextToken()
+		return &ast.FunctionCall{
+			Token:     identToken,
+			Function:  functionName,
+			Arguments: []ast.Expression{},
+		}
+	}
+	arg := p.parseExpression()
+	args := []ast.Expression{arg}
+	for p.currentTokenIs(lexer.COMMA) {
+		p.nextToken()
+		nextArg := p.parseExpression()
+		args = append(args, nextArg)
+	}
+	if !p.currentTokenIs(lexer.RPAREN) {
+		p.errors = append(p.errors, fmt.Sprintf("expected closing parenthesis but found %s", p.currentToken.Literal))
+		return nil
+	}
+	p.nextToken() // consume RPAREN
+	return &ast.FunctionCall{
+		Token:     identToken,
+		Function:  functionName,
+		Arguments: args,
+	}
 }
 
 // parseGroupedExpression parses an expression wrapped in parentheses

@@ -43,12 +43,12 @@ Write the parser functions for literals, comparisons, and logical operators. Han
 
 - 📖 [Start Module 4](module4-parser-core/README.md)
 
-### Module 5: Advanced Features - ~1.5 hours
-**Goal**: Add traversal, has operator, and wildcards
+### Module 5: Advanced Features - ~2 hours
+**Goal**: Add traversal, has operator, and function calls
 
-Implement the more complex parts of AIP-160: field traversal (`a.b.c`), has operator (`list:value`), and wildcard matching.
+Implement the more complex parts of AIP-160: field traversal (`a.b.c`), has operator (`tags:urgent`), and function calls (`timestamp(created_at)`).
 
-- 📖 Coming after Module 4
+- 📖 [Start Module 5](module5-advanced-features/README.md)
 
 ### Module 6: Evaluation Engine - ~2 hours
 **Goal**: Execute filters against real data

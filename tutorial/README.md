@@ -50,12 +50,12 @@ Implement the more complex parts of AIP-160: field traversal (`a.b.c`), has oper
 
 - 📖 [Start Module 5](module5-advanced-features/README.md)
 
-### Module 6: Evaluation Engine - ~2 hours
-**Goal**: Execute filters against real data
+### Module 6: Schema Validation - ~2.5 hours
+**Goal**: Validate filters against struct schemas
 
-Build the evaluation engine that takes your AST and runs it against Go structs/maps to determine if they match the filter.
+Build a validator that uses reflection to check if filters are valid for a given Go struct type. Validates field existence, type compatibility, array operators, and function calls.
 
-- 📖 Coming after Module 5
+- 📖 [Start Module 6](module6-validation/README.md)
 
 ## 🎓 How to Use This Tutorial
 

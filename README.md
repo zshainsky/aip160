@@ -55,6 +55,64 @@ This tutorial uses **Test-Driven Development (TDD)**:
 - You implement the code to make tests pass
 - Solutions and hints are available when needed
 
+## Usage Examples
+
+Once you've completed the tutorial, you can use the AIP-160 filter package in your applications. Here are the main entry points:
+
+### Parsing a Filter String
+
+The complete flow: tokenize → parse → validate
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+	"github.com/zshainsky/aip160/pkg/filter/lexer"
+	"github.com/zshainsky/aip160/pkg/filter/parser"
+	"github.com/zshainsky/aip160/pkg/filter/validator"
+	"reflect"
+)
+
+// Define your data model
+type User struct {
+	Name   string `json:"name"`
+	Age    int    `json:"age"`
+	Email  string `json:"email"`
+	Active bool   `json:"active"`
+}
+
+func main() {
+	// Your filter string from API request
+	filterString := `name = "John" AND age > 25`
+	
+	// Step 1: Tokenize (lexer)
+	l := lexer.New(filterString)
+	
+	// Step 2: Parse into AST
+	p := parser.New(l)
+	program := p.ParseProgram()
+	
+	// Check for parsing errors
+	if len(p.Errors()) > 0 {
+		log.Fatalf("Parser errors: %v", p.Errors())
+	}
+	
+	// Step 3: Validate against your struct
+	v := validator.NewValidator(reflect.TypeOf(User{}), validator.WithJSONTags())
+	errors := v.Validate(program)
+	
+	if len(errors) > 0 {
+		log.Fatalf("Validation errors: %v", errors)
+	}
+	
+	// Success! The filter is valid
+	fmt.Println("Filter is valid:", program.String())
+	// Output: Filter is valid: ((name = "John") AND (age > 25))
+}
+```
+
 ## Running Tests
 
 ```bash

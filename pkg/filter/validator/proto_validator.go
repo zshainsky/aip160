@@ -2,6 +2,7 @@ package validator
 
 import (
 	"fmt"
+	"strings"
 
 	"google.golang.org/protobuf/reflect/protoreflect"
 
@@ -20,20 +21,84 @@ import (
 //	msgDesc := myProtoMessage.ProtoReflect().Descriptor()
 //	validator := NewProtoValidator(msgDesc)
 //	errors := validator.Validate(astNode)
+//
+// With options:
+//
+//	validator := NewProtoValidator(msgDesc,
+//		WithEnumPrefixStripping(false),
+//		// Future options can be added here
+//	)
 type ProtoValidator struct {
 	descriptor protoreflect.MessageDescriptor
+	options    ProtoValidatorOptions
+}
+
+// ProtoValidatorOptions holds configuration for ProtoValidator behavior.
+// This struct can be extended with new options in the future without
+// breaking the API.
+type ProtoValidatorOptions struct {
+	// EnableEnumPrefixStripping allows enum values to match with prefix stripped.
+	// When true (default): "ACTIVE" matches "STATUS_ACTIVE"
+	// When false: only "STATUS_ACTIVE" matches
+	EnableEnumPrefixStripping bool
+
+	// Future options can be added here:
+	// AllowCaseInsensitiveFields bool
+	// StrictModeEnabled bool
+	// CustomValidators map[string]func(...) error
+}
+
+// ProtoValidatorOption is a functional option for configuring ProtoValidator.
+type ProtoValidatorOption func(*ProtoValidatorOptions)
+
+// WithEnumPrefixStripping controls whether enum values can be matched with their
+// prefix stripped. When enabled (default), both forms are accepted:
+//   - status = "STATUS_ACTIVE" (exact match)
+//   - status = "ACTIVE" (prefix-stripped: STATUS_ + ACTIVE)
+//
+// When disabled, only exact matches are accepted:
+//   - status = "STATUS_ACTIVE" (only this works)
+//   - status = "ACTIVE" (fails)
+//
+// Default: true (enabled for user convenience and AIP-160 "non-technical audience" principle)
+//
+// Example:
+//
+//	validator := NewProtoValidator(msgDesc, WithEnumPrefixStripping(false))
+func WithEnumPrefixStripping(enable bool) ProtoValidatorOption {
+	return func(opts *ProtoValidatorOptions) {
+		opts.EnableEnumPrefixStripping = enable
+	}
 }
 
 // NewProtoValidator creates a new validator for the given protobuf message descriptor.
 // The descriptor can be obtained from any proto.Message via the ProtoReflect().Descriptor() method.
 //
+// Accepts optional configuration via ProtoValidatorOption functions.
+// Multiple options can be chained together.
+//
 // Example:
 //
 //	var user *pb.User
-//	validator := NewProtoValidator(user.ProtoReflect().Descriptor())
-func NewProtoValidator(msgDesc protoreflect.MessageDescriptor, opts ...ValidatorOption) *ProtoValidator {
+//	validator := NewProtoValidator(
+//		user.ProtoReflect().Descriptor(),
+//		WithEnumPrefixStripping(false),
+//		// Add more options as needed
+//	)
+func NewProtoValidator(msgDesc protoreflect.MessageDescriptor, opts ...ProtoValidatorOption) *ProtoValidator {
+	// Default options
+	options := ProtoValidatorOptions{
+		EnableEnumPrefixStripping: true, // User-friendly default
+	}
+
+	// Apply provided options
+	for _, opt := range opts {
+		opt(&options)
+	}
+
 	return &ProtoValidator{
 		descriptor: msgDesc,
+		options:    options,
 	}
 }
 
@@ -41,7 +106,7 @@ func NewProtoValidator(msgDesc protoreflect.MessageDescriptor, opts ...Validator
 // Returns an empty slice if the AST is valid.
 func (pv *ProtoValidator) Validate(node ast.Node) []error {
 	var errors []error
-	
+
 	// Handle Program node which contains the root expression
 	if program, ok := node.(*ast.Program); ok {
 		if program.Expression != nil {
@@ -49,7 +114,7 @@ func (pv *ProtoValidator) Validate(node ast.Node) []error {
 		}
 		return errors
 	}
-	
+
 	// For non-Program nodes, validate directly
 	pv.validateNode(node, &errors)
 	return errors
@@ -68,7 +133,7 @@ func (pv *ProtoValidator) validateNode(node ast.Node, errors *[]error) {
 		pv.validateIdentifier(n.Value, errors)
 	case *ast.TraversalExpression:
 		pv.validateTraversal(n, errors)
-	// Literal nodes (StringLiteral, NumberLiteral, BooleanLiteral) don't need validation
+		// Literal nodes (StringLiteral, NumberLiteral, BooleanLiteral) don't need validation
 	}
 }
 
@@ -98,20 +163,119 @@ func (pv *ProtoValidator) findFieldByName(descriptor protoreflect.MessageDescrip
 
 // validateComparison validates comparison expressions (=, !=, <, >, <=, >=).
 func (pv *ProtoValidator) validateComparison(expr *ast.ComparisonExpression, errors *[]error) {
+	// Validate left side (field reference)
+	pv.validateNode(expr.Left, errors)
+
+	// Get field descriptor to check if it's an enum
+	var fieldDesc protoreflect.FieldDescriptor
+	if ident, ok := expr.Left.(*ast.Identifier); ok {
+		fieldDesc, _ = pv.findFieldByName(pv.descriptor, ident.Value)
+	}
+
+	// Special handling for enum fields
+	if fieldDesc != nil && fieldDesc.Kind() == protoreflect.EnumKind {
+		pv.validateEnumComparison(expr, fieldDesc, errors)
+		return
+	}
+
 	// Get types of left and right operands
 	leftKind, leftOk := pv.getExpressionKind(expr.Left)
 	rightKind, rightOk := pv.getExpressionKind(expr.Right)
-	
-	// Validate left side (field reference)
-	pv.validateNode(expr.Left, errors)
-	
+
 	// Check type compatibility
 	if leftOk && rightOk {
 		if !pv.protoKindsCompatible(leftKind, rightKind) {
-			pv.addError(errors, "cannot compare %s field with %s value", 
+			pv.addError(errors, "cannot compare %s field with %s value",
 				leftKind, rightKind)
 		}
 	}
+}
+
+// validateEnumComparison validates comparison expressions specifically for enum fields.
+// Enums have special rules per AIP-160:
+// - Only = and != operators are allowed (no ordering operators)
+// - Values must be string literals representing enum value names
+// - Value names must exist in the enum definition (case-sensitive)
+func (pv *ProtoValidator) validateEnumComparison(expr *ast.ComparisonExpression, fieldDesc protoreflect.FieldDescriptor, errors *[]error) {
+	// Enforce operator restriction: only = and != allowed for enums
+	if !pv.isValidEnumOperator(expr.Operator) {
+		pv.addError(errors, "enum field '%s' only supports = and != operators, not %s",
+			fieldDesc.Name(), expr.Operator)
+		return
+	}
+
+	// Right side must be a string literal (enum value name)
+	stringLit, ok := expr.Right.(*ast.StringLiteral)
+	if !ok {
+		pv.addError(errors, "enum field '%s' requires string value (enum name), not %T",
+			fieldDesc.Name(), expr.Right)
+		return
+	}
+
+	// Validate the enum value exists in the enum definition
+	if !pv.isValidEnumValue(fieldDesc, stringLit.Value) {
+		validValues := pv.getEnumValueNames(fieldDesc)
+		pv.addError(errors, "enum field '%s' has invalid value '%s'; valid values are: %v",
+			fieldDesc.Name(), stringLit.Value, validValues)
+	}
+}
+
+// isValidEnumOperator checks if an operator is allowed for enum fields.
+// Per AIP-160, only = and != are valid for enums (no ordering operators).
+func (pv *ProtoValidator) isValidEnumOperator(operator string) bool {
+	return operator == "=" || operator == "!="
+}
+
+// isValidEnumValue checks if a string value is a valid enum value name.
+// Supports both exact matching and prefix-stripped matching.
+//
+// Matching rules (in order):
+//  1. Exact match: "STATUS_ACTIVE" matches STATUS_ACTIVE
+//  2. Prefix match: "ACTIVE" matches STATUS_ACTIVE (prefix = enum name + "_")
+//  3. Case-sensitive in all cases
+//
+// Examples:
+//   - Enum Status {STATUS_ACTIVE, STATUS_INACTIVE}
+//   - "STATUS_ACTIVE" ✓ (exact)
+//   - "ACTIVE" ✓ (prefix-stripped)
+//   - "active" ✗ (wrong case)
+//   - Enum Result {SUCCESS, FAILED} (no prefix)
+//   - "SUCCESS" ✓ (exact)
+//   - "RESULT_SUCCESS" ✗ (prefix doesn't exist)
+func (pv *ProtoValidator) isValidEnumValue(fieldDesc protoreflect.FieldDescriptor, value string) bool {
+	enumDesc := fieldDesc.Enum()
+
+	// Try exact match first
+	if enumDesc.Values().ByName(protoreflect.Name(value)) != nil {
+		return true
+	}
+
+	// TODO: Add option to disable prefix stripping (e.g., WithEnumPrefixStripping(false))
+	// Currently always enabled for user convenience. Future implementation:
+	//   if !pv.options.EnableEnumPrefixStripping {
+	//       return false
+	//   }
+
+	// Try with enum name prefix (for user-friendly filters)
+	// E.g., "ACTIVE" → "STATUS_ACTIVE" for enum Status
+	prefix := strings.ToUpper(string(enumDesc.Name())) + "_"
+	withPrefix := prefix + value
+	if enumDesc.Values().ByName(protoreflect.Name(withPrefix)) != nil {
+		return true
+	}
+
+	return false
+}
+
+// getEnumValueNames returns a list of all valid enum value names for an enum field.
+// Used for generating helpful error messages.
+func (pv *ProtoValidator) getEnumValueNames(fieldDesc protoreflect.FieldDescriptor) []string {
+	enumDesc := fieldDesc.Enum()
+	validValues := make([]string, 0, enumDesc.Values().Len())
+	for i := 0; i < enumDesc.Values().Len(); i++ {
+		validValues = append(validValues, string(enumDesc.Values().Get(i).Name()))
+	}
+	return validValues
 }
 
 // getExpressionKind determines the proto kind of an expression.
@@ -154,28 +318,28 @@ func (pv *ProtoValidator) protoKindsCompatible(left, right protoreflect.Kind) bo
 	if left == protoreflect.StringKind || left == protoreflect.BytesKind {
 		return right == protoreflect.StringKind || right == protoreflect.BytesKind
 	}
-	
+
 	// Integer types - only compatible with integer literals
 	if isProtoIntegerKind(left) {
 		return isProtoIntegerKind(right)
 	}
-	
+
 	// Float types - compatible with both integer and float literals
 	if isProtoFloatKind(left) {
 		return isProtoNumericKind(right)
 	}
-	
+
 	// Boolean types
 	if left == protoreflect.BoolKind {
 		return right == protoreflect.BoolKind
 	}
-	
+
 	// Enum types
 	if left == protoreflect.EnumKind {
 		// Enums compare with string values (enum name)
 		return right == protoreflect.StringKind
 	}
-	
+
 	return false
 }
 

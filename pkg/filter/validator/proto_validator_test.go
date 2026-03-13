@@ -41,8 +41,8 @@ func validateProtoFilter(t *testing.T, filterStr string, msgDesc protoreflect.Me
 // TestProtoValidator_FieldExists tests that validation passes for existing fields
 // 🔴 RED: This test should FAIL initially because validator is just a stub
 func TestProtoValidator_FieldExists(t *testing.T) {
-	user := &testdata.User{}
-	msgDesc := user.ProtoReflect().Descriptor()
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
 
 	// Test single field that exists
 	errs := validateProtoFilter(t, `name = "John"`, msgDesc)
@@ -66,8 +66,8 @@ func TestProtoValidator_FieldExists(t *testing.T) {
 // TestProtoValidator_FieldDoesNotExist tests that validation fails for non-existent fields
 // 🔴 RED: This test should FAIL initially because validator returns empty errors
 func TestProtoValidator_FieldDoesNotExist(t *testing.T) {
-	user := &testdata.User{}
-	msgDesc := user.ProtoReflect().Descriptor()
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
 
 	// Test non-existent field
 	errs := validateProtoFilter(t, `invalid_field = "test"`, msgDesc)
@@ -86,8 +86,8 @@ func TestProtoValidator_FieldDoesNotExist(t *testing.T) {
 // TestProtoValidator_MultipleFields tests validation with multiple field references
 // 🔴 RED: This test should FAIL initially
 func TestProtoValidator_MultipleFields(t *testing.T) {
-	user := &testdata.User{}
-	msgDesc := user.ProtoReflect().Descriptor()
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
 
 	// All valid fields should pass
 	errs := validateProtoFilter(t, `name = "John" AND age = 25 AND email = "test@example.com"`, msgDesc)
@@ -109,8 +109,8 @@ func TestProtoValidator_MultipleFields(t *testing.T) {
 // TestProtoValidator_MultipleInvalidFields tests that all invalid fields are reported
 // 🔴 RED: This test should FAIL initially
 func TestProtoValidator_MultipleInvalidFields(t *testing.T) {
-	user := &testdata.User{}
-	msgDesc := user.ProtoReflect().Descriptor()
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
 
 	// Multiple invalid fields should all be reported
 	errs := validateProtoFilter(t, `invalid1 = "test" AND invalid2 = "test"`, msgDesc)
@@ -149,7 +149,7 @@ func TestProtoValidator_ScientificNotation(t *testing.T) {
 		// {"sint32 with negative integer scientific", `temperature = -3e2`, true}, // -300 is valid
 	}
 
-	msg := &testdata.User{}
+	msg := &testdata.TestProtoData{}
 	msgDesc := msg.ProtoReflect().Descriptor()
 	pv := NewProtoValidator(msgDesc)
 
@@ -175,8 +175,8 @@ func TestProtoValidator_ScientificNotation(t *testing.T) {
 }
 
 func TestProtoValidator_TypeCompatibility_ValidTypes(t *testing.T) {
-	user := &testdata.User{}
-	msgDesc := user.ProtoReflect().Descriptor()
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
 
 	tests := []struct {
 		name   string
@@ -184,7 +184,7 @@ func TestProtoValidator_TypeCompatibility_ValidTypes(t *testing.T) {
 	}{
 		// String types
 		{"string field with string literal", `name = "John"`},
-		{"bytes field with string literal", `profile_image = "data"`},
+		{"bytes field with string literal", `data = "data"`},
 
 		// Boolean
 		{"bool field with boolean literal", `active = true`},
@@ -249,8 +249,8 @@ func TestProtoValidator_TypeCompatibility_ValidTypes(t *testing.T) {
 // TestProtoValidator_TypeCompatibility_InvalidTypes tests invalid type combinations
 // Tests rejection of incompatible literals for all integer types
 func TestProtoValidator_TypeCompatibility_InvalidTypes(t *testing.T) {
-	user := &testdata.User{}
-	msgDesc := user.ProtoReflect().Descriptor()
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
 
 	tests := []struct {
 		name   string
@@ -258,7 +258,7 @@ func TestProtoValidator_TypeCompatibility_InvalidTypes(t *testing.T) {
 	}{
 		// String type errors
 		{"string field with number literal", `name = 123`},
-		{"bytes field with number literal", `profile_image = 456`},
+		{"bytes field with number literal", `data = 456`},
 
 		// Boolean type errors
 		{"bool field with string literal", `active = "true"`},
@@ -324,28 +324,28 @@ func TestProtoValidator_TypeCompatibility_InvalidTypes(t *testing.T) {
 // TestProtoValidator_EnumValidation_ValidValues tests that enum fields
 // accept valid enum value names as strings
 func TestProtoValidator_EnumValidation_ValidValues(t *testing.T) {
-	person := &testdata.Person{}
-	msgDesc := person.ProtoReflect().Descriptor()
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
 
 	tests := []struct {
 		name   string
 		filter string
 	}{
 		// Valid enum values (string representation)
-		{"enum with ACTIVE value", `status = "STATUS_ACTIVE"`},
-		{"enum with INACTIVE value", `status = "STATUS_INACTIVE"`},
-		{"enum with PENDING value", `status = "STATUS_PENDING"`},
-		{"enum with UNSPECIFIED value", `status = "STATUS_UNSPECIFIED"`},
+		{"enum with ACTIVE value", `task_status = "TASK_STATUS_ACTIVE"`},
+		{"enum with INACTIVE value", `task_status = "TASK_STATUS_INACTIVE"`},
+		{"enum with PENDING value", `task_status = "TASK_STATUS_COMPLETED"`},
+		{"enum with UNSPECIFIED value", `task_status = "TASK_STATUS_UNSPECIFIED"`},
 
-		// Valid enum values (string representation without prefixed values)
-		{"enum with ACTIVE value no prefix", `status = "ACTIVE"`},
-		{"enum with INACTIVE value no prefix", `status = "INACTIVE"`},
-		{"enum with PENDING value no prefix", `status = "PENDING"`},
-		{"enum with UNSPECIFIED value no prefix", `status = "UNSPECIFIED"`},
+		// Valid enum values (prefix-stripped - should match with prefix added)
+		{"enum with ACTIVE value no prefix", `task_status = "ACTIVE"`},
+		{"enum with INACTIVE value no prefix", `task_status = "INACTIVE"`},
+		{"enum with COMPLETED value no prefix", `task_status = "COMPLETED"`},
+		{"enum with UNSPECIFIED value no prefix", `task_status = "UNSPECIFIED"`},
 
 		// Equality and inequality operators (only ones allowed for enums)
-		{"enum with equality operator", `status = "STATUS_ACTIVE"`},
-		{"enum with inequality operator", `status != "STATUS_INACTIVE"`},
+		{"enum with equality operator", `task_status = "TASK_STATUS_ACTIVE"`},
+		{"enum with inequality operator", `task_status != "TASK_STATUS_INACTIVE"`},
 	}
 
 	for _, tt := range tests {
@@ -361,24 +361,24 @@ func TestProtoValidator_EnumValidation_ValidValues(t *testing.T) {
 // TestProtoValidator_EnumValidation_InvalidValues tests that enum fields
 // reject invalid enum values
 func TestProtoValidator_EnumValidation_InvalidValues(t *testing.T) {
-	person := &testdata.Person{}
-	msgDesc := person.ProtoReflect().Descriptor()
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
 
 	tests := []struct {
 		name   string
 		filter string
 	}{
 		// Invalid enum values (not in enum definition)
-		{"enum with invalid value", `status = "INVALID_VALUE"`},
-		{"enum with wrong case", `status = "status_active"`},
-		{"enum with numeric value", `status = 1`},
-		{"enum with boolean", `status = true`},
+		{"enum with invalid value", `task_status = "INVALID_VALUE"`},
+		{"enum with wrong case", `task_status = "status_active"`},
+		{"enum with numeric value", `task_status = 1`},
+		{"enum with boolean", `task_status = true`},
 
 		// Invalid operators for enum (only = and != allowed)
-		{"enum with less than", `status < "STATUS_ACTIVE"`},
-		{"enum with greater than", `status > "STATUS_ACTIVE"`},
-		{"enum with less or equal", `status <= "STATUS_PENDING"`},
-		{"enum with greater or equal", `status >= "STATUS_PENDING"`},
+		{"enum with less than", `status < "TASK_STATUS_ACTIVE"`},
+		{"enum with greater than", `status > "TASK_STATUS_ACTIVE"`},
+		{"enum with less or equal", `status <= "TASK_STATUS_COMPLETED"`},
+		{"enum with greater or equal", `status >= "TASK_STATUS_COMPLETED"`},
 	}
 
 	for _, tt := range tests {
@@ -391,47 +391,62 @@ func TestProtoValidator_EnumValidation_InvalidValues(t *testing.T) {
 	}
 }
 
-// TestProtoValidator_EnumValidation_NonPrefixedEnum tests enum values without
-// the ENUM_NAME_ prefix pattern (e.g., FAILED instead of RESULT_FAILED).
+// TestProtoValidator_EnumValidation_NonPrefixedEnum_ValidValues tests valid enum values
+// for TaskResult enum which has non-prefixed values (SUCCESS, FAILED, PENDING).
 // Per proto3 spec, the prefix pattern is recommended but not required.
-func TestProtoValidator_EnumValidation_NonPrefixedEnum(t *testing.T) {
-	task := &testdata.Task{}
-	msgDesc := task.ProtoReflect().Descriptor()
+func TestProtoValidator_EnumValidation_NonPrefixedEnum_ValidValues(t *testing.T) {
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
 
 	tests := []struct {
 		name   string
 		filter string
-		valid  bool
 	}{
 		// Valid non-prefixed enum values
-		{"non-prefixed SUCCESS", `result = "SUCCESS"`, true},
-		{"non-prefixed FAILED", `result = "FAILED"`, true},
-		{"non-prefixed PENDING", `result = "PENDING"`, true},
-		{"non-prefixed UNSPECIFIED", `result = "UNSPECIFIED"`, true},
+		{"non-prefixed SUCCESS", `task_result = "SUCCESS"`},
+		{"non-prefixed FAILED", `task_result = "FAILED"`},
+		{"non-prefixed PENDING", `task_result = "PENDING"`},
 
-		// Case sensitivity still enforced (per AIP-160: case-sensitive)
-		{"lowercase rejected", `result = "success"`, false},
-		{"mixed case rejected", `result = "Success"`, false},
-		{"wrong case failed", `result = "failed"`, false},
-		
-		// Prefixed versions don't exist (verify we don't add prefixes where they don't exist)
-		{"prefixed RESULT_SUCCESS doesn't exist", `result = "RESULT_SUCCESS"`, false},
-		{"prefixed RESULT_FAILED doesn't exist", `result = "RESULT_FAILED"`, false},
-		{"prefixed RESULT_PENDING doesn't exist", `result = "RESULT_PENDING"`, false},
-		{"prefixed RESULT_UNSPECIFIED doesn't exist", `result = "RESULT_UNSPECIFIED"`, false},
+		// TASK_RESULT_UNSPECIFIED is actually prefixed (zero value conventionally has prefix)
+		{"prefixed TASK_RESULT_UNSPECIFIED exists", `task_result = "TASK_RESULT_UNSPECIFIED"`},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			errs := validateProtoFilter(t, tt.filter, msgDesc)
-			if tt.valid {
-				if len(errs) > 0 {
-					t.Errorf("Expected no errors, got: %v", errs)
-				}
-			} else {
-				if len(errs) == 0 {
-					t.Errorf("Expected validation error, got none")
-				}
+			if len(errs) > 0 {
+				t.Errorf("Expected no errors, got: %v", errs)
+			}
+		})
+	}
+}
+
+// TestProtoValidator_EnumValidation_NonPrefixedEnum_InvalidValues tests invalid enum values
+// for TaskResult enum to ensure proper validation and that we don't incorrectly add prefixes.
+func TestProtoValidator_EnumValidation_NonPrefixedEnum_InvalidValues(t *testing.T) {
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
+
+	tests := []struct {
+		name   string
+		filter string
+	}{
+		// Case sensitivity still enforced (per AIP-160: case-sensitive)
+		{"lowercase rejected", `task_result = "success"`},
+		{"mixed case rejected", `task_result = "Success"`},
+		{"wrong case failed", `task_result = "failed"`},
+		
+		// Prefixed versions don't exist for non-zero values (verify we don't add prefixes where they don't exist)
+		{"prefixed TASK_RESULT_SUCCESS doesn't exist", `task_result = "TASK_RESULT_SUCCESS"`},
+		{"prefixed TASK_RESULT_FAILED doesn't exist", `task_result = "TASK_RESULT_FAILED"`},
+		{"prefixed TASK_RESULT_PENDING doesn't exist", `task_result = "TASK_RESULT_PENDING"`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+			if len(errs) == 0 {
+				t.Errorf("Expected validation error, got none")
 			}
 		})
 	}

@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package testdata;
+
+option go_package = "github.com/zshainsky/aip160/pkg/filter/validator/testdata";
+
+// TaskStatus demonstrates enum with multi-word prefix (TASK_STATUS_*).
+// Tests prefix-stripping with compound prefix ("ACTIVE" matches "TASK_STATUS_ACTIVE").
+enum TaskStatus {
+  TASK_STATUS_UNSPECIFIED = 0;
+  TASK_STATUS_ACTIVE = 1;
+  TASK_STATUS_INACTIVE = 2;
+  TASK_STATUS_COMPLETED = 3;
+}
+
+// TaskResult demonstrates enum without prefix (non-standard but valid).
+// Tests that we don't add prefixes where they don't exist.
+enum TaskResult {
+  TASK_RESULT_UNSPECIFIED = 0;  // Zero value conventionally has prefix
+  SUCCESS = 1;
+  FAILED = 2;
+  PENDING = 3;
+}
+
+// TestProtoData contains all field types for ProtoValidator testing.
+// Single message for all scalar types, enums, and operator validation.
+message TestProtoData {
+  // String and bytes
+  string name = 1;
+  string email = 2;
+  bytes data = 3;
+  
+  // Boolean (= and != only)
+  bool active = 4;
+  
+  // Enums
+  TaskStatus task_status = 5;
+  TaskResult task_result = 6;
+  
+  // Signed integers
+  int32 age = 10;
+  int64 user_id = 11;
+  
+  // Unsigned integers
+  uint32 points = 12;
+  uint64 balance = 13;
+  
+  // Signed integers (zigzag encoded)
+  sint32 temperature = 14;
+  sint64 offset = 15;
+  
+  // Fixed-width unsigned
+  fixed32 fixed_id = 16;
+  fixed64 fixed_timestamp = 17;
+  
+  // Fixed-width signed
+  sfixed32 sfixed_coord_x = 18;
+  sfixed64 sfixed_coord_y = 19;
+  
+  // Floating point
+  float score = 20;
+  double rating = 21;
+}

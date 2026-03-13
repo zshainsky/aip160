@@ -178,6 +178,15 @@ func (pv *ProtoValidator) validateComparison(expr *ast.ComparisonExpression, err
 		return
 	}
 
+	// Check operator restrictions for boolean fields
+	if fieldDesc != nil && fieldDesc.Kind() == protoreflect.BoolKind {
+		if !pv.isValidOperatorForKind(expr.Operator, protoreflect.BoolKind) {
+			pv.addError(errors, "boolean field '%s' does not support operator '%s' (only = and != allowed)",
+				fieldDesc.Name(), expr.Operator)
+			return
+		}
+	}
+
 	// Get types of left and right operands
 	leftKind, leftOk := pv.getExpressionKind(expr.Left)
 	rightKind, rightOk := pv.getExpressionKind(expr.Right)
@@ -198,7 +207,7 @@ func (pv *ProtoValidator) validateComparison(expr *ast.ComparisonExpression, err
 // - Value names must exist in the enum definition (case-sensitive)
 func (pv *ProtoValidator) validateEnumComparison(expr *ast.ComparisonExpression, fieldDesc protoreflect.FieldDescriptor, errors *[]error) {
 	// Enforce operator restriction: only = and != allowed for enums
-	if !pv.isValidEnumOperator(expr.Operator) {
+	if !pv.isValidOperatorForKind(expr.Operator, protoreflect.EnumKind) {
 		pv.addError(errors, "enum field '%s' only supports = and != operators, not %s",
 			fieldDesc.Name(), expr.Operator)
 		return
@@ -220,28 +229,26 @@ func (pv *ProtoValidator) validateEnumComparison(expr *ast.ComparisonExpression,
 	}
 }
 
-// isValidEnumOperator checks if an operator is allowed for enum fields.
-// Per AIP-160, only = and != are valid for enums (no ordering operators).
-func (pv *ProtoValidator) isValidEnumOperator(operator string) bool {
-	return operator == "=" || operator == "!="
-}
-
 // isValidEnumValue checks if a string value is a valid enum value name.
 // Supports both exact matching and prefix-stripped matching.
 //
 // Matching rules (in order):
-//  1. Exact match: "STATUS_ACTIVE" matches STATUS_ACTIVE
-//  2. Prefix match: "ACTIVE" matches STATUS_ACTIVE (prefix = enum name + "_")
+//  1. Exact match: "TASK_STATUS_ACTIVE" matches TASK_STATUS_ACTIVE
+//  2. Prefix-stripped match: "ACTIVE" matches TASK_STATUS_ACTIVE
+//     - Enum name converted to SCREAMING_SNAKE_CASE (TaskStatus → TASK_STATUS_)
+//     - Value prepended with prefix: "ACTIVE" → "TASK_STATUS_ACTIVE"
 //  3. Case-sensitive in all cases
 //
 // Examples:
-//   - Enum Status {STATUS_ACTIVE, STATUS_INACTIVE}
-//   - "STATUS_ACTIVE" ✓ (exact)
-//   - "ACTIVE" ✓ (prefix-stripped)
-//   - "active" ✗ (wrong case)
-//   - Enum Result {SUCCESS, FAILED} (no prefix)
-//   - "SUCCESS" ✓ (exact)
-//   - "RESULT_SUCCESS" ✗ (prefix doesn't exist)
+//   - Enum TaskStatus {TASK_STATUS_ACTIVE, TASK_STATUS_INACTIVE}
+//     - "TASK_STATUS_ACTIVE" ✓ (exact match)
+//     - "ACTIVE" ✓ (prefix-stripped: TASK_STATUS_ + ACTIVE)
+//     - "active" ✗ (wrong case)
+//   - Enum TaskResult {TASK_RESULT_UNSPECIFIED, SUCCESS, FAILED}
+//     - "SUCCESS" ✓ (exact match, no prefix needed)
+//     - "TASK_RESULT_SUCCESS" ✗ (prefix doesn't exist in enum)
+//
+// Note: Multi-word enum names handled correctly (TaskStatus → TASK_STATUS_)
 func (pv *ProtoValidator) isValidEnumValue(fieldDesc protoreflect.FieldDescriptor, value string) bool {
 	enumDesc := fieldDesc.Enum()
 
@@ -258,13 +265,27 @@ func (pv *ProtoValidator) isValidEnumValue(fieldDesc protoreflect.FieldDescripto
 
 	// Try with enum name prefix (for user-friendly filters)
 	// E.g., "ACTIVE" → "STATUS_ACTIVE" for enum Status
-	prefix := strings.ToUpper(string(enumDesc.Name())) + "_"
+	// Or "ACTIVE" → "TASK_STATUS_ACTIVE" for enum TaskStatus
+	prefix := toScreamingSnakeCase(string(enumDesc.Name())) + "_"
 	withPrefix := prefix + value
 	if enumDesc.Values().ByName(protoreflect.Name(withPrefix)) != nil {
 		return true
 	}
 
 	return false
+}
+
+// toScreamingSnakeCase converts CamelCase to SCREAMING_SNAKE_CASE.
+// Examples: "Status" → "STATUS", "TaskStatus" → "TASK_STATUS"
+func toScreamingSnakeCase(s string) string {
+	var result strings.Builder
+	for i, r := range s {
+		if i > 0 && r >= 'A' && r <= 'Z' {
+			result.WriteRune('_')
+		}
+		result.WriteRune(r)
+	}
+	return strings.ToUpper(result.String())
 }
 
 // getEnumValueNames returns a list of all valid enum value names for an enum field.
@@ -276,6 +297,22 @@ func (pv *ProtoValidator) getEnumValueNames(fieldDesc protoreflect.FieldDescript
 		validValues = append(validValues, string(enumDesc.Values().Get(i).Name()))
 	}
 	return validValues
+}
+
+// isValidOperatorForKind checks if an operator is valid for a given proto kind.
+// Per AIP-160:
+//   - Boolean fields: only = and != (no ordering operators)
+//   - Enum fields: only = and != (no ordering operators)
+//   - All other types: all 6 operators allowed (=, !=, <, >, <=, >=)
+func (pv *ProtoValidator) isValidOperatorForKind(operator string, kind protoreflect.Kind) bool {
+	switch kind {
+	case protoreflect.BoolKind, protoreflect.EnumKind:
+		// Boolean and enum fields only support equality operators
+		return operator == "=" || operator == "!="
+	default:
+		// All other types support all operators
+		return true
+	}
 }
 
 // getExpressionKind determines the proto kind of an expression.

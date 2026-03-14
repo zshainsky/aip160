@@ -159,6 +159,23 @@ func (pv *ProtoValidator) findFieldByName(descriptor protoreflect.MessageDescrip
 	return fieldDesc, fieldDesc != nil
 }
 
+// resolveFieldFromExpression resolves a field descriptor from any expression type.
+// Handles both simple identifiers and nested traversal expressions.
+// Does NOT add errors - returns nil if not found (callers decide error handling).
+// This is the unified entry point for field resolution across the validator.
+func (pv *ProtoValidator) resolveFieldFromExpression(node ast.Node, msgDesc protoreflect.MessageDescriptor) protoreflect.FieldDescriptor {
+	switch n := node.(type) {
+	case *ast.Identifier:
+		return msgDesc.Fields().ByName(protoreflect.Name(n.Value))
+	case *ast.TraversalExpression:
+		// Delegate to full recursive resolver without error reporting
+		fieldDesc, _ := pv.resolveFieldDescriptor(n, msgDesc, &[]error{})
+		return fieldDesc
+	default:
+		return nil
+	}
+}
+
 // === Expression Validators ===
 
 // validateComparison validates comparison expressions (=, !=, <, >, <=, >=).
@@ -167,69 +184,87 @@ func (pv *ProtoValidator) validateComparison(expr *ast.ComparisonExpression, err
 	pv.validateNode(expr.Left, errors)
 
 	// Get field descriptor for left side (handles both simple and nested fields)
-	var fieldDesc protoreflect.FieldDescriptor
-	switch left := expr.Left.(type) {
-	case *ast.Identifier:
-		fieldDesc, _ = pv.findFieldByName(pv.descriptor, left.Value)
-	case *ast.TraversalExpression:
-		// For nested fields, resolve the full path to get the final field descriptor
-		fieldDesc, _ = pv.resolveFieldDescriptor(left, pv.descriptor, &[]error{})
+	fieldDesc := pv.resolveFieldFromExpression(expr.Left, pv.descriptor)
+	if fieldDesc == nil {
+		return // Field validation already added error
 	}
 
-	// Special handling for enum fields
-	if fieldDesc != nil && fieldDesc.Kind() == protoreflect.EnumKind {
-		pv.validateEnumComparison(expr, fieldDesc, errors)
-		return
+	// Validate operator is allowed for this field type
+	if !pv.validateOperatorForField(expr.Operator, fieldDesc, expr.Left, errors) {
+		return // Operator validation failed, error already added
 	}
 
-	// Check operator restrictions for boolean fields
-	if fieldDesc != nil && fieldDesc.Kind() == protoreflect.BoolKind {
-		if !pv.isValidOperatorForKind(expr.Operator, protoreflect.BoolKind) {
-			pv.addError(errors, "boolean field '%s' does not support operator '%s' (only = and != allowed)",
-				pv.getFieldPath(expr.Left), expr.Operator)
-			return
+	// Validate value type matches field type
+	if !pv.validateTypeCompatibility(expr, fieldDesc, errors) {
+		return // Type validation failed, error already added
+	}
+
+	// For enum fields, validate the specific enum value exists
+	if fieldDesc.Kind() == protoreflect.EnumKind {
+		pv.validateEnumValue(expr, fieldDesc, errors)
+	}
+}
+
+// validateOperatorForField checks if the operator is valid for the given field type.
+// Returns false if validation fails (with error added), true to continue validation.
+func (pv *ProtoValidator) validateOperatorForField(operator string, fieldDesc protoreflect.FieldDescriptor, fieldNode ast.Node, errors *[]error) bool {
+	kind := fieldDesc.Kind()
+	
+	// Boolean and enum fields only support = and != operators
+	if kind == protoreflect.BoolKind || kind == protoreflect.EnumKind {
+		if !pv.isValidOperatorForKind(operator, kind) {
+			fieldType := "boolean"
+			if kind == protoreflect.EnumKind {
+				fieldType = "enum"
+			}
+			pv.addError(errors, "%s field '%s' does not support operator '%s' (only = and != allowed)",
+				fieldType, pv.getFieldPath(fieldNode), operator)
+			return false
 		}
 	}
 
-	// Get types of left and right operands
+	return true // Operator is valid, continue validation
+}
+
+// validateTypeCompatibility checks if the right operand type is compatible with the field type.
+// Returns false if validation fails (with error added), true to continue validation.
+func (pv *ProtoValidator) validateTypeCompatibility(expr *ast.ComparisonExpression, fieldDesc protoreflect.FieldDescriptor, errors *[]error) bool {
+	// For enum fields, must be string literal
+	if fieldDesc.Kind() == protoreflect.EnumKind {
+		if _, ok := expr.Right.(*ast.StringLiteral); !ok {
+			pv.addError(errors, "enum field '%s' requires string value (enum name), not %T",
+				pv.getFieldPath(expr.Left), expr.Right)
+			return false
+		}
+		return true // Type is correct, continue to value validation
+	}
+
+	// For all other fields, check proto kind compatibility
 	leftKind, leftOk := pv.getExpressionKind(expr.Left)
 	rightKind, rightOk := pv.getExpressionKind(expr.Right)
 
-	// Check type compatibility
 	if leftOk && rightOk {
 		if !pv.protoKindsCompatible(leftKind, rightKind) {
 			pv.addError(errors, "cannot compare %s field with %s value",
 				leftKind, rightKind)
+			return false
 		}
 	}
+
+	return true // Type compatibility validated
 }
 
-// validateEnumComparison validates comparison expressions specifically for enum fields.
-// Enums have special rules per AIP-160:
-// - Only = and != operators are allowed (no ordering operators)
-// - Values must be string literals representing enum value names
-// - Value names must exist in the enum definition (case-sensitive)
-func (pv *ProtoValidator) validateEnumComparison(expr *ast.ComparisonExpression, fieldDesc protoreflect.FieldDescriptor, errors *[]error) {
-	// Enforce operator restriction: only = and != allowed for enums
-	if !pv.isValidOperatorForKind(expr.Operator, protoreflect.EnumKind) {
-		pv.addError(errors, "enum field '%s' only supports = and != operators, not %s",
-			fieldDesc.Name(), expr.Operator)
-		return
-	}
-
-	// Right side must be a string literal (enum value name)
-	stringLit, ok := expr.Right.(*ast.StringLiteral)
-	if !ok {
-		pv.addError(errors, "enum field '%s' requires string value (enum name), not %T",
-			fieldDesc.Name(), expr.Right)
-		return
-	}
+// validateEnumValue validates that the enum value exists in the enum definition.
+// Assumes operator and type have already been validated.
+func (pv *ProtoValidator) validateEnumValue(expr *ast.ComparisonExpression, fieldDesc protoreflect.FieldDescriptor, errors *[]error) {
+	// Right side is guaranteed to be string literal by validateTypeCompatibility
+	stringLit := expr.Right.(*ast.StringLiteral)
 
 	// Validate the enum value exists in the enum definition
 	if !pv.isValidEnumValue(fieldDesc, stringLit.Value) {
 		validValues := pv.getEnumValueNames(fieldDesc)
 		pv.addError(errors, "enum field '%s' has invalid value '%s'; valid values are: %v",
-			fieldDesc.Name(), stringLit.Value, validValues)
+			pv.getFieldPath(expr.Left), stringLit.Value, validValues)
 	}
 }
 
@@ -326,14 +361,9 @@ func (pv *ProtoValidator) isValidOperatorForKind(operator string, kind protorefl
 // whether the value has a fractional part (e.g., 23 vs 23.55).
 func (pv *ProtoValidator) getExpressionKind(node ast.Node) (protoreflect.Kind, bool) {
 	switch n := node.(type) {
-	case *ast.Identifier:
-		fieldDesc, ok := pv.findFieldByName(pv.descriptor, n.Value)
-		if ok {
-			return fieldDesc.Kind(), true
-		}
-	case *ast.TraversalExpression:
-		// For nested fields, resolve the full path to get the final field's kind
-		fieldDesc, _ := pv.resolveFieldDescriptor(n, pv.descriptor, &[]error{})
+	case *ast.Identifier, *ast.TraversalExpression:
+		// Use unified field resolution for both simple and nested fields
+		fieldDesc := pv.resolveFieldFromExpression(n, pv.descriptor)
 		if fieldDesc != nil {
 			return fieldDesc.Kind(), true
 		}

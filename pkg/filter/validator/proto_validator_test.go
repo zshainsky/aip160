@@ -435,7 +435,7 @@ func TestProtoValidator_EnumValidation_NonPrefixedEnum_InvalidValues(t *testing.
 		{"lowercase rejected", `task_result = "success"`},
 		{"mixed case rejected", `task_result = "Success"`},
 		{"wrong case failed", `task_result = "failed"`},
-		
+
 		// Prefixed versions don't exist for non-zero values (verify we don't add prefixes where they don't exist)
 		{"prefixed TASK_RESULT_SUCCESS doesn't exist", `task_result = "TASK_RESULT_SUCCESS"`},
 		{"prefixed TASK_RESULT_FAILED doesn't exist", `task_result = "TASK_RESULT_FAILED"`},
@@ -467,7 +467,7 @@ func TestProtoValidator_NestedTraversal_Valid(t *testing.T) {
 		// One level deep
 		{"one level string", `nested.name = "test"`},
 		{"one level bool", `nested.enabled = true`},
-		
+
 		// Two levels deep - all scalar types at leaf
 		{"two level string", `nested.leaf.text = "value"`},
 		{"two level bool", `nested.leaf.flag = false`},
@@ -570,7 +570,7 @@ func TestProtoValidator_NestedTraversal_TypeValidation(t *testing.T) {
 		{"bool with bool", `nested.leaf.flag = true`, true},
 		{"int with int", `nested.leaf.count = 42`, true},
 		{"float with float", `nested.leaf.score = 3.14`, true},
-		
+
 		// Invalid type mismatches
 		{"string with number", `nested.leaf.text = 123`, false},
 		{"bool with string", `nested.leaf.flag = "true"`, false},
@@ -627,7 +627,6 @@ func TestProtoValidator_RepeatedField_RejectComparisons(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			errs := validateProtoFilter(t, tt.filter, msgDesc)
-			
 			// RED PHASE: These should FAIL because we haven't implemented the check yet
 			if len(errs) == 0 {
 				t.Errorf("Expected error for comparison on repeated field '%s', got none", tt.filter)
@@ -643,6 +642,57 @@ func TestProtoValidator_RepeatedField_RejectComparisons(t *testing.T) {
 				if !found {
 					t.Errorf("Expected error mentioning '%s' for '%s', got: %v", tt.expectedError, tt.filter, errs)
 				}
+			}
+		})
+	}
+}
+
+// Phase 6B RED: TestProtoValidator_RepeatedField_BasicHas
+//
+// AIP-160 requires the HAS operator (:) for repeated fields:
+// - r:"value" - True if repeated field contains "value"
+// - r:42 - True if repeated field contains 42
+// - r:* - True if repeated field is present (non-empty)
+//
+// This test validates basic HAS operator functionality on repeated scalar fields.
+//
+// Expected: These tests should FAIL (RED phase) because validateHas() doesn't exist yet
+// and validateNode() doesn't have a case for ast.HasExpression.
+func TestProtoValidator_RepeatedField_BasicHas(t *testing.T) {
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
+
+	tests := []struct {
+		name       string
+		filter     string
+		valid      bool
+		errorCount int
+	}{
+		// Basic HAS on repeated string
+		{"repeated string has", `tags:"urgent"`, true, 0},
+		{"repeated string has no match", `tags:"nonexistent"`, true, 0}, // Valid syntax, runtime would return no results
+
+		// Basic HAS on repeated int32
+		{"repeated int has", `scores:100`, true, 0},
+		{"repeated int has no match", `scores:999`, true, 0}, // Valid syntax
+
+		// Star operator - presence check
+		// TODO: Parser doesn't support * as identifier yet - uncomment when fixed
+		// {"repeated string star", `tags:*`, true, 0},
+		// {"repeated int star", `scores:*`, true, 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+
+			// RED PHASE: These should FAIL because validateHas() doesn't exist
+			if tt.valid && len(errs) != tt.errorCount {
+				t.Errorf("Expected %d errors for valid HAS '%s', got %d: %v",
+					tt.errorCount, tt.filter, len(errs), errs)
+			}
+			if !tt.valid && len(errs) == 0 {
+				t.Errorf("Expected validation error for invalid HAS '%s', got none", tt.filter)
 			}
 		})
 	}

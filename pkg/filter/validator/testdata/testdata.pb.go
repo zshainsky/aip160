@@ -397,8 +397,9 @@ type TestProtoData struct {
 	// Nested structure for traversal testing (1 → 2 → 3 levels deep)
 	// All scalar types also available at leaf for deep traversal validation
 	Nested *NestedData `protobuf:"bytes,20,opt,name=nested,proto3" json:"nested,omitempty"`
-	// Repeated field for future validation
+	// Repeated fields for HAS operator validation (TDD Cycle 6)
 	Tags          []string `protobuf:"bytes,21,rep,name=tags,proto3" json:"tags,omitempty"`
+	Scores        []int32  `protobuf:"varint,22,rep,packed,name=scores,proto3" json:"scores,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -566,6 +567,13 @@ func (x *TestProtoData) GetTags() []string {
 	return nil
 }
 
+func (x *TestProtoData) GetScores() []int32 {
+	if x != nil {
+		return x.Scores
+	}
+	return nil
+}
+
 var File_pkg_filter_validator_testdata_testdata_proto protoreflect.FileDescriptor
 
 const file_pkg_filter_validator_testdata_testdata_proto_rawDesc = "" +
@@ -595,7 +603,7 @@ const file_pkg_filter_validator_testdata_testdata_proto_rawDesc = "" +
 	"NestedData\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\aenabled\x18\x02 \x01(\bR\aenabled\x12&\n" +
-	"\x04leaf\x18\x03 \x01(\v2\x12.testdata.LeafDataR\x04leaf\"\xd4\x04\n" +
+	"\x04leaf\x18\x03 \x01(\v2\x12.testdata.LeafDataR\x04leaf\"\xec\x04\n" +
 	"\rTestProtoData\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
 	"\x03age\x18\x02 \x01(\x05R\x03age\x12\x16\n" +
@@ -618,7 +626,8 @@ const file_pkg_filter_validator_testdata_testdata_proto_rawDesc = "" +
 	"\x06rating\x18\x10 \x01(\x01R\x06rating\x12\x12\n" +
 	"\x04data\x18\x11 \x01(\fR\x04data\x12,\n" +
 	"\x06nested\x18\x14 \x01(\v2\x14.testdata.NestedDataR\x06nested\x12\x12\n" +
-	"\x04tags\x18\x15 \x03(\tR\x04tags*v\n" +
+	"\x04tags\x18\x15 \x03(\tR\x04tags\x12\x16\n" +
+	"\x06scores\x18\x16 \x03(\x05R\x06scores*v\n" +
 	"\n" +
 	"TaskStatus\x12\x1b\n" +
 	"\x17TASK_STATUS_UNSPECIFIED\x10\x00\x12\x16\n" +

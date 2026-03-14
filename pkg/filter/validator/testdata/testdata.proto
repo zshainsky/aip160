@@ -92,6 +92,7 @@ message TestProtoData {
   // All scalar types also available at leaf for deep traversal validation
   NestedData nested = 20;
   
-  // Repeated field for future validation
+  // Repeated fields for HAS operator validation (TDD Cycle 6)
   repeated string tags = 21;
+  repeated int32 scores = 22;
 }

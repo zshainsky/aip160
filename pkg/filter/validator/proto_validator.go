@@ -133,6 +133,8 @@ func (pv *ProtoValidator) validateNode(node ast.Node, errors *[]error) {
 		pv.validateIdentifier(n.Value, errors)
 	case *ast.TraversalExpression:
 		pv.validateTraversal(n, errors)
+	case *ast.HasExpression:
+		pv.validateHas(n, errors)
 		// Literal nodes (StringLiteral, NumberLiteral, BooleanLiteral) don't need validation
 	}
 }
@@ -211,13 +213,13 @@ func (pv *ProtoValidator) validateOperatorForField(operator string, fieldDesc pr
 	// Repeated fields cannot use comparison operators - must use HAS operator (:) instead
 	// Per AIP-160: "The . operator must not be used to traverse through a repeated field"
 	if fieldDesc.IsList() {
-		pv.addError(errors, "cannot use comparison operator on repeated field '%s', use has operator (:) instead", 
+		pv.addError(errors, "cannot use comparison operator on repeated field '%s', use has operator (:) instead",
 			pv.getFieldPath(fieldNode))
 		return false
 	}
 
 	kind := fieldDesc.Kind()
-	
+
 	// Boolean and enum fields only support = and != operators
 	if kind == protoreflect.BoolKind || kind == protoreflect.EnumKind {
 		if !pv.isValidOperatorForKind(operator, kind) {
@@ -288,12 +290,12 @@ func (pv *ProtoValidator) validateEnumValue(expr *ast.ComparisonExpression, fiel
 //
 // Examples:
 //   - Enum TaskStatus {TASK_STATUS_ACTIVE, TASK_STATUS_INACTIVE}
-//     - "TASK_STATUS_ACTIVE" ✓ (exact match)
-//     - "ACTIVE" ✓ (prefix-stripped: TASK_STATUS_ + ACTIVE)
-//     - "active" ✗ (wrong case)
+//   - "TASK_STATUS_ACTIVE" ✓ (exact match)
+//   - "ACTIVE" ✓ (prefix-stripped: TASK_STATUS_ + ACTIVE)
+//   - "active" ✗ (wrong case)
 //   - Enum TaskResult {TASK_RESULT_UNSPECIFIED, SUCCESS, FAILED}
-//     - "SUCCESS" ✓ (exact match, no prefix needed)
-//     - "TASK_RESULT_SUCCESS" ✗ (prefix doesn't exist in enum)
+//   - "SUCCESS" ✓ (exact match, no prefix needed)
+//   - "TASK_RESULT_SUCCESS" ✗ (prefix doesn't exist in enum)
 //
 // Note: Multi-word enum names handled correctly (TaskStatus → TASK_STATUS_)
 func (pv *ProtoValidator) isValidEnumValue(fieldDesc protoreflect.FieldDescriptor, value string) bool {
@@ -547,4 +549,63 @@ func (pv *ProtoValidator) getFieldPath(node ast.Node) string {
 	default:
 		return ""
 	}
+}
+
+// validateHas validates HAS operator expressions (collection:member).
+// Per AIP-160, the HAS operator (:) is used for:
+// - Repeated fields: r:"value" checks if repeated field contains value
+// - Maps: m:key checks if map contains key (TODO: not yet implemented)
+// - Messages: m:* checks if message field is present (TODO: Phase 6E)
+func (pv *ProtoValidator) validateHas(expr *ast.HasExpression, errors *[]error) {
+	// Step 1: Resolve collection field descriptor
+	// For now, handle simple Identifier (e.g., tags, scores)
+	// TODO: Handle TraversalExpression for nested fields (Phase 6D)
+	var fieldDesc protoreflect.FieldDescriptor
+
+	switch coll := expr.Collection.(type) {
+	case *ast.Identifier:
+		fieldDesc = pv.descriptor.Fields().ByName(protoreflect.Name(coll.Value))
+		if fieldDesc == nil {
+			pv.addError(errors, "field '%s' does not exist in message %s", coll.Value, pv.descriptor.Name())
+			return
+		}
+	default:
+		// TODO: Handle TraversalExpression in Phase 6D
+		pv.addError(errors, "nested HAS expressions not yet supported")
+		return
+	}
+
+	// Step 2: Validate collection is a repeated field
+	if !fieldDesc.IsList() {
+		// TODO: Handle maps (Phase 6F) and messages (Phase 6E)
+		pv.addError(errors, "HAS operator currently only supports repeated fields, got %s", fieldDesc.Kind())
+		return
+	}
+
+	// Step 3: Validate member type matches element type
+	elementKind := fieldDesc.Kind()
+
+	// Get member value kind
+	memberKind, ok := pv.getExpressionKind(expr.Member)
+	if !ok {
+		return // getExpressionKind already added error
+	}
+
+	// Check type compatibility
+	if !pv.protoKindsCompatible(elementKind, memberKind) {
+		collectionName := expr.Collection.(*ast.Identifier).Value
+		pv.addError(errors, "type mismatch: repeated field '%s' has elements of type %s, cannot check for %s value",
+			collectionName, elementKind, memberKind)
+		return
+	}
+}
+
+// isStarLiteral checks if a node is the star (*) identifier used for presence checks.
+// Per AIP-160: r:* checks if field r is present (non-empty).
+// Returns true if node is an Identifier with value "*".
+func isStarLiteral(node ast.Node) bool {
+	if ident, ok := node.(*ast.Identifier); ok {
+		return ident.Value == "*"
+	}
+	return false
 }

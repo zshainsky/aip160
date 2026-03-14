@@ -10,8 +10,8 @@ import (
 // value validation (checking against a valid set). This struct stores the
 // necessary metadata extracted during detection.
 type EnumInfo struct {
-	TypeName string            // Full enum type name (e.g., "Classification")
-	ValueMap map[string]int32  // String -> int32 mapping (e.g., Classification_value)
+	TypeName string           // Full enum type name (e.g., "Classification")
+	ValueMap map[string]int32 // String -> int32 mapping (e.g., Classification_value)
 }
 
 // detectEnum checks if a struct field is a protobuf enum and extracts metadata.

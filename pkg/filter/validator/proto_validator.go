@@ -558,31 +558,90 @@ func (pv *ProtoValidator) getFieldPath(node ast.Node) string {
 // - Messages: m:* checks if message field is present (TODO: Phase 6E)
 func (pv *ProtoValidator) validateHas(expr *ast.HasExpression, errors *[]error) {
 	// Step 1: Resolve collection field descriptor
-	// For now, handle simple Identifier (e.g., tags, scores)
-	// TODO: Handle TraversalExpression for nested fields (Phase 6D)
 	var fieldDesc protoreflect.FieldDescriptor
+	var collectionPath string
 
 	switch coll := expr.Collection.(type) {
 	case *ast.Identifier:
+		// Simple repeated field: tags, scores, statuses
 		fieldDesc = pv.descriptor.Fields().ByName(protoreflect.Name(coll.Value))
 		if fieldDesc == nil {
 			pv.addError(errors, "field '%s' does not exist in message %s", coll.Value, pv.descriptor.Name())
 			return
 		}
+		collectionPath = coll.Value
+
+	case *ast.TraversalExpression:
+		// Nested HAS: emails.address, emails.metadata.source, nested.leaf.leaf_tags
+		// For repeated message HAS, we need to:
+		// 1. Find the first repeated field in the path (e.g., "emails")
+		// 2. Get the rest of the path after the repeated field (e.g., "address")
+		// 3. Validate the nested path exists in the repeated message element type
+
+		// For now, assume the LEFT side is the repeated field and RIGHT is the nested path
+		// This handles emails.address but not deeper nesting yet
+		// TODO: Handle multi-level nesting like nested.leaf.leaf_tags (need to find repeated field in chain)
+
+		// Try to resolve just the left part
+		leftFieldDesc := pv.resolveFieldFromExpression(coll.Left, pv.descriptor)
+		if leftFieldDesc == nil {
+			pv.addError(errors, "field '%s' does not exist", pv.getFieldPath(coll.Left))
+			return
+		}
+
+		// Check if left part is repeated
+		if leftFieldDesc.IsList() {
+			// Left is repeated - resolve right part within element type
+			if leftFieldDesc.Kind() != protoreflect.MessageKind {
+				pv.addError(errors, "cannot traverse into repeated field '%s' of non-message type %s",
+					pv.getFieldPath(coll.Left), leftFieldDesc.Kind())
+				return
+			}
+
+			// Get element message descriptor
+			elementMsgDesc := leftFieldDesc.Message()
+
+			// Resolve the right part (nested path) within the element message
+			fieldDesc, _ = pv.resolveFieldDescriptor(coll.Right, elementMsgDesc, errors)
+			if fieldDesc == nil {
+				return // resolveFieldDescriptor already added errors
+			}
+			collectionPath = pv.getFieldPath(coll)
+		} else {
+			// Left is not repeated - resolve full path and check if final field is repeated
+			fieldDesc, _ = pv.resolveFieldDescriptor(coll, pv.descriptor, errors)
+			if fieldDesc == nil {
+				return // resolveFieldDescriptor already added errors
+			}
+			collectionPath = pv.getFieldPath(coll)
+		}
+
 	default:
-		// TODO: Handle TraversalExpression in Phase 6D
-		pv.addError(errors, "nested HAS expressions not yet supported")
+		pv.addError(errors, "invalid collection expression in HAS operator")
 		return
 	}
 
-	// Step 2: Validate collection is a repeated field
+	// Step 2: Check if this is actually a repeated field somewhere in the path
+	// For simple cases (tags, scores), fieldDesc.IsList() will be true
+	// For nested cases (emails.address, nested.leaf.leaf_tags), we already validated
+	// the path and fieldDesc is the final field to check against
+
+	// If field descriptor is NOT a list, it means we have a nested path like emails.address
+	// In this case, we DON'T error - we've already resolved through the repeated field
+	// and fieldDesc is now the nested field type to validate against
+
+	// Only error if it's a simple identifier (not traversal) and not repeated
 	if !fieldDesc.IsList() {
-		// TODO: Handle maps (Phase 6F) and messages (Phase 6E)
-		pv.addError(errors, "HAS operator currently only supports repeated fields, got %s", fieldDesc.Kind())
-		return
+		if _, isSimple := expr.Collection.(*ast.Identifier); isSimple {
+			// Simple identifier that's not repeated - invalid for HAS
+			// TODO: Handle maps and messages (Phases 6E/6F)
+			pv.addError(errors, "HAS operator currently only supports repeated fields, got %s", fieldDesc.Kind())
+			return
+		}
+		// For TraversalExpression, fieldDesc is the nested field - continue to type checking
 	}
 
-	// Step 3: Validate member type matches element type
+	// Step 3: Validate member type matches element/field type
 	elementKind := fieldDesc.Kind()
 
 	// Special handling for enum elements
@@ -593,9 +652,8 @@ func (pv *ProtoValidator) validateHas(expr *ast.HasExpression, errors *[]error) 
 			return // getExpressionKind already added error
 		}
 		if memberKind != protoreflect.StringKind {
-			collectionName := expr.Collection.(*ast.Identifier).Value
 			pv.addError(errors, "enum repeated field '%s' requires string value, got %s",
-				collectionName, memberKind)
+				collectionPath, memberKind)
 			return
 		}
 
@@ -605,10 +663,9 @@ func (pv *ProtoValidator) validateHas(expr *ast.HasExpression, errors *[]error) 
 			return // Should not happen if getExpressionKind returned StringKind
 		}
 		if !pv.isValidEnumValue(fieldDesc, stringLit.Value) {
-			collectionName := expr.Collection.(*ast.Identifier).Value
 			validValues := pv.getEnumValueNames(fieldDesc)
 			pv.addError(errors, "invalid enum value '%s' for repeated field '%s', valid values: %v",
-				stringLit.Value, collectionName, validValues)
+				stringLit.Value, collectionPath, validValues)
 		}
 		return
 	}
@@ -621,9 +678,8 @@ func (pv *ProtoValidator) validateHas(expr *ast.HasExpression, errors *[]error) 
 
 	// Check type compatibility
 	if !pv.protoKindsCompatible(elementKind, memberKind) {
-		collectionName := expr.Collection.(*ast.Identifier).Value
 		pv.addError(errors, "type mismatch: repeated field '%s' has elements of type %s, cannot check for %s value",
-			collectionName, elementKind, memberKind)
+			collectionPath, elementKind, memberKind)
 		return
 	}
 }

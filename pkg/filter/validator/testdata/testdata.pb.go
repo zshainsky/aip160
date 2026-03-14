@@ -155,8 +155,10 @@ type LeafData struct {
 	SfixedCount  int32  `protobuf:"fixed32,14,opt,name=sfixed_count,json=sfixedCount,proto3" json:"sfixed_count,omitempty"`
 	SfixedBignum int64  `protobuf:"fixed64,15,opt,name=sfixed_bignum,json=sfixedBignum,proto3" json:"sfixed_bignum,omitempty"`
 	// Floating point
-	Score         float32 `protobuf:"fixed32,16,opt,name=score,proto3" json:"score,omitempty"`
-	Rating        float64 `protobuf:"fixed64,17,opt,name=rating,proto3" json:"rating,omitempty"`
+	Score  float32 `protobuf:"fixed32,16,opt,name=score,proto3" json:"score,omitempty"`
+	Rating float64 `protobuf:"fixed64,17,opt,name=rating,proto3" json:"rating,omitempty"`
+	// Repeated field for deep nesting HAS tests (Phase 6D)
+	LeafTags      []string `protobuf:"bytes,51,rep,name=leaf_tags,json=leafTags,proto3" json:"leaf_tags,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -310,6 +312,119 @@ func (x *LeafData) GetRating() float64 {
 	return 0
 }
 
+func (x *LeafData) GetLeafTags() []string {
+	if x != nil {
+		return x.LeafTags
+	}
+	return nil
+}
+
+// Email represents an email with metadata for nested HAS testing.
+type Email struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Address       string                 `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
+	Metadata      *EmailMetadata         `protobuf:"bytes,2,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Email) Reset() {
+	*x = Email{}
+	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Email) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Email) ProtoMessage() {}
+
+func (x *Email) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Email.ProtoReflect.Descriptor instead.
+func (*Email) Descriptor() ([]byte, []int) {
+	return file_pkg_filter_validator_testdata_testdata_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *Email) GetAddress() string {
+	if x != nil {
+		return x.Address
+	}
+	return ""
+}
+
+func (x *Email) GetMetadata() *EmailMetadata {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+// EmailMetadata represents metadata about an email.
+type EmailMetadata struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Source        string                 `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
+	Priority      int32                  `protobuf:"varint,2,opt,name=priority,proto3" json:"priority,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EmailMetadata) Reset() {
+	*x = EmailMetadata{}
+	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EmailMetadata) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EmailMetadata) ProtoMessage() {}
+
+func (x *EmailMetadata) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EmailMetadata.ProtoReflect.Descriptor instead.
+func (*EmailMetadata) Descriptor() ([]byte, []int) {
+	return file_pkg_filter_validator_testdata_testdata_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *EmailMetadata) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *EmailMetadata) GetPriority() int32 {
+	if x != nil {
+		return x.Priority
+	}
+	return 0
+}
+
 // NestedData represents middle-level nesting with a leaf message.
 type NestedData struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -322,7 +437,7 @@ type NestedData struct {
 
 func (x *NestedData) Reset() {
 	*x = NestedData{}
-	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[1]
+	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -334,7 +449,7 @@ func (x *NestedData) String() string {
 func (*NestedData) ProtoMessage() {}
 
 func (x *NestedData) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[1]
+	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -347,7 +462,7 @@ func (x *NestedData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NestedData.ProtoReflect.Descriptor instead.
 func (*NestedData) Descriptor() ([]byte, []int) {
-	return file_pkg_filter_validator_testdata_testdata_proto_rawDescGZIP(), []int{1}
+	return file_pkg_filter_validator_testdata_testdata_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *NestedData) GetName() string {
@@ -401,13 +516,14 @@ type TestProtoData struct {
 	Tags          []string     `protobuf:"bytes,21,rep,name=tags,proto3" json:"tags,omitempty"`
 	Scores        []int32      `protobuf:"varint,22,rep,packed,name=scores,proto3" json:"scores,omitempty"`
 	Statuses      []TaskStatus `protobuf:"varint,23,rep,packed,name=statuses,proto3,enum=testdata.TaskStatus" json:"statuses,omitempty"` // Plural form for enum testing
+	Emails        []*Email     `protobuf:"bytes,24,rep,name=emails,proto3" json:"emails,omitempty"`                                      // Plural form for nested message HAS testing
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TestProtoData) Reset() {
 	*x = TestProtoData{}
-	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[2]
+	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -419,7 +535,7 @@ func (x *TestProtoData) String() string {
 func (*TestProtoData) ProtoMessage() {}
 
 func (x *TestProtoData) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[2]
+	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -432,7 +548,7 @@ func (x *TestProtoData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TestProtoData.ProtoReflect.Descriptor instead.
 func (*TestProtoData) Descriptor() ([]byte, []int) {
-	return file_pkg_filter_validator_testdata_testdata_proto_rawDescGZIP(), []int{2}
+	return file_pkg_filter_validator_testdata_testdata_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *TestProtoData) GetName() string {
@@ -582,11 +698,18 @@ func (x *TestProtoData) GetStatuses() []TaskStatus {
 	return nil
 }
 
+func (x *TestProtoData) GetEmails() []*Email {
+	if x != nil {
+		return x.Emails
+	}
+	return nil
+}
+
 var File_pkg_filter_validator_testdata_testdata_proto protoreflect.FileDescriptor
 
 const file_pkg_filter_validator_testdata_testdata_proto_rawDesc = "" +
 	"\n" +
-	",pkg/filter/validator/testdata/testdata.proto\x12\btestdata\"\x84\x04\n" +
+	",pkg/filter/validator/testdata/testdata.proto\x12\btestdata\"\xa1\x04\n" +
 	"\bLeafData\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x12\x12\n" +
 	"\x04data\x18\x02 \x01(\fR\x04data\x12\x12\n" +
@@ -606,12 +729,19 @@ const file_pkg_filter_validator_testdata_testdata_proto_rawDesc = "" +
 	"\fsfixed_count\x18\x0e \x01(\x0fR\vsfixedCount\x12#\n" +
 	"\rsfixed_bignum\x18\x0f \x01(\x10R\fsfixedBignum\x12\x14\n" +
 	"\x05score\x18\x10 \x01(\x02R\x05score\x12\x16\n" +
-	"\x06rating\x18\x11 \x01(\x01R\x06rating\"b\n" +
+	"\x06rating\x18\x11 \x01(\x01R\x06rating\x12\x1b\n" +
+	"\tleaf_tags\x183 \x03(\tR\bleafTags\"V\n" +
+	"\x05Email\x12\x18\n" +
+	"\aaddress\x18\x01 \x01(\tR\aaddress\x123\n" +
+	"\bmetadata\x18\x02 \x01(\v2\x17.testdata.EmailMetadataR\bmetadata\"C\n" +
+	"\rEmailMetadata\x12\x16\n" +
+	"\x06source\x18\x01 \x01(\tR\x06source\x12\x1a\n" +
+	"\bpriority\x18\x02 \x01(\x05R\bpriority\"b\n" +
 	"\n" +
 	"NestedData\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\aenabled\x18\x02 \x01(\bR\aenabled\x12&\n" +
-	"\x04leaf\x18\x03 \x01(\v2\x12.testdata.LeafDataR\x04leaf\"\x9e\x05\n" +
+	"\x04leaf\x18\x03 \x01(\v2\x12.testdata.LeafDataR\x04leaf\"\xc7\x05\n" +
 	"\rTestProtoData\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
 	"\x03age\x18\x02 \x01(\x05R\x03age\x12\x16\n" +
@@ -636,7 +766,8 @@ const file_pkg_filter_validator_testdata_testdata_proto_rawDesc = "" +
 	"\x06nested\x18\x14 \x01(\v2\x14.testdata.NestedDataR\x06nested\x12\x12\n" +
 	"\x04tags\x18\x15 \x03(\tR\x04tags\x12\x16\n" +
 	"\x06scores\x18\x16 \x03(\x05R\x06scores\x120\n" +
-	"\bstatuses\x18\x17 \x03(\x0e2\x14.testdata.TaskStatusR\bstatuses*v\n" +
+	"\bstatuses\x18\x17 \x03(\x0e2\x14.testdata.TaskStatusR\bstatuses\x12'\n" +
+	"\x06emails\x18\x18 \x03(\v2\x0f.testdata.EmailR\x06emails*v\n" +
 	"\n" +
 	"TaskStatus\x12\x1b\n" +
 	"\x17TASK_STATUS_UNSPECIFIED\x10\x00\x12\x16\n" +
@@ -664,27 +795,31 @@ func file_pkg_filter_validator_testdata_testdata_proto_rawDescGZIP() []byte {
 }
 
 var file_pkg_filter_validator_testdata_testdata_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_pkg_filter_validator_testdata_testdata_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_pkg_filter_validator_testdata_testdata_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_pkg_filter_validator_testdata_testdata_proto_goTypes = []any{
 	(TaskStatus)(0),       // 0: testdata.TaskStatus
 	(TaskResult)(0),       // 1: testdata.TaskResult
 	(*LeafData)(nil),      // 2: testdata.LeafData
-	(*NestedData)(nil),    // 3: testdata.NestedData
-	(*TestProtoData)(nil), // 4: testdata.TestProtoData
+	(*Email)(nil),         // 3: testdata.Email
+	(*EmailMetadata)(nil), // 4: testdata.EmailMetadata
+	(*NestedData)(nil),    // 5: testdata.NestedData
+	(*TestProtoData)(nil), // 6: testdata.TestProtoData
 }
 var file_pkg_filter_validator_testdata_testdata_proto_depIdxs = []int32{
 	0, // 0: testdata.LeafData.status:type_name -> testdata.TaskStatus
 	1, // 1: testdata.LeafData.result:type_name -> testdata.TaskResult
-	2, // 2: testdata.NestedData.leaf:type_name -> testdata.LeafData
-	0, // 3: testdata.TestProtoData.task_status:type_name -> testdata.TaskStatus
-	1, // 4: testdata.TestProtoData.task_result:type_name -> testdata.TaskResult
-	3, // 5: testdata.TestProtoData.nested:type_name -> testdata.NestedData
-	0, // 6: testdata.TestProtoData.statuses:type_name -> testdata.TaskStatus
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	4, // 2: testdata.Email.metadata:type_name -> testdata.EmailMetadata
+	2, // 3: testdata.NestedData.leaf:type_name -> testdata.LeafData
+	0, // 4: testdata.TestProtoData.task_status:type_name -> testdata.TaskStatus
+	1, // 5: testdata.TestProtoData.task_result:type_name -> testdata.TaskResult
+	5, // 6: testdata.TestProtoData.nested:type_name -> testdata.NestedData
+	0, // 7: testdata.TestProtoData.statuses:type_name -> testdata.TaskStatus
+	3, // 8: testdata.TestProtoData.emails:type_name -> testdata.Email
+	9, // [9:9] is the sub-list for method output_type
+	9, // [9:9] is the sub-list for method input_type
+	9, // [9:9] is the sub-list for extension type_name
+	9, // [9:9] is the sub-list for extension extendee
+	0, // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_pkg_filter_validator_testdata_testdata_proto_init() }
@@ -698,7 +833,7 @@ func file_pkg_filter_validator_testdata_testdata_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pkg_filter_validator_testdata_testdata_proto_rawDesc), len(file_pkg_filter_validator_testdata_testdata_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   3,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

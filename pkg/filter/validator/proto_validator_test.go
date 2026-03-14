@@ -747,3 +747,56 @@ func TestProtoValidator_RepeatedEnum_Has(t *testing.T) {
 		})
 	}
 }
+
+// Phase 6D RED: TestProtoValidator_RepeatedMessage_NestedHas
+//
+// AIP-160 supports nested HAS on repeated messages:
+// - emails.address:"test" - True if emails contains element where address="test"
+// - emails.metadata.source:"web" - Multi-level traversal through repeated message
+//
+// This is the most complex HAS scenario: traversing INTO a repeated message field
+// to check if any element has a matching nested field value.
+//
+// Expected: These tests should FAIL (RED phase) because validateHas() doesn't
+// handle TraversalExpression on the collection side yet.
+func TestProtoValidator_RepeatedMessage_NestedHas(t *testing.T) {
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
+
+	tests := []struct {
+		name       string
+		filter     string
+		valid      bool
+		errorCount int
+	}{
+		// Nested HAS on repeated message (2-level: emails.address)
+		{"repeated message 2-level", `emails.address:"test@example.com"`, true, 0},
+		{"repeated message 2-level string", `emails.address:"user@domain.com"`, true, 0},
+
+		// Nested HAS on repeated message (3-level: emails.metadata.source)
+		{"repeated message 3-level", `emails.metadata.source:"web"`, true, 0},
+		{"repeated message 3-level int", `emails.metadata.priority:5`, true, 0},
+
+		// Traversal to nested repeated field (3-level)
+		{"3-level to repeated", `nested.leaf.leaf_tags:"critical"`, true, 0},
+		{"3-level to repeated urgent", `nested.leaf.leaf_tags:"urgent"`, true, 0},
+
+		// Star operator on repeated message (TODO: parser limitation)
+		// {"repeated message star", `emails:*`, true, 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+
+			// RED PHASE: These should FAIL because nested traversal not supported yet
+			if tt.valid && len(errs) != tt.errorCount {
+				t.Errorf("Expected %d errors for nested HAS '%s', got %d: %v",
+					tt.errorCount, tt.filter, len(errs), errs)
+			}
+			if !tt.valid && len(errs) == 0 {
+				t.Errorf("Expected validation error for invalid nested HAS '%s', got none", tt.filter)
+			}
+		})
+	}
+}

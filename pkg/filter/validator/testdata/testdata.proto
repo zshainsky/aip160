@@ -55,6 +55,21 @@ message LeafData {
   // Floating point
   float score = 16;
   double rating = 17;
+  
+  // Repeated field for deep nesting HAS tests (Phase 6D)
+  repeated string leaf_tags = 51;
+}
+
+// Email represents an email with metadata for nested HAS testing.
+message Email {
+  string address = 1;
+  EmailMetadata metadata = 2;
+}
+
+// EmailMetadata represents metadata about an email.
+message EmailMetadata {
+  string source = 1;
+  int32 priority = 2;
 }
 
 // NestedData represents middle-level nesting with a leaf message.
@@ -96,4 +111,5 @@ message TestProtoData {
   repeated string tags = 21;
   repeated int32 scores = 22;
   repeated TaskStatus statuses = 23;  // Plural form for enum testing
+  repeated Email emails = 24;  // Plural form for nested message HAS testing
 }

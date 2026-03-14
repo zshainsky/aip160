@@ -398,8 +398,9 @@ type TestProtoData struct {
 	// All scalar types also available at leaf for deep traversal validation
 	Nested *NestedData `protobuf:"bytes,20,opt,name=nested,proto3" json:"nested,omitempty"`
 	// Repeated fields for HAS operator validation (TDD Cycle 6)
-	Tags          []string `protobuf:"bytes,21,rep,name=tags,proto3" json:"tags,omitempty"`
-	Scores        []int32  `protobuf:"varint,22,rep,packed,name=scores,proto3" json:"scores,omitempty"`
+	Tags          []string     `protobuf:"bytes,21,rep,name=tags,proto3" json:"tags,omitempty"`
+	Scores        []int32      `protobuf:"varint,22,rep,packed,name=scores,proto3" json:"scores,omitempty"`
+	Statuses      []TaskStatus `protobuf:"varint,23,rep,packed,name=statuses,proto3,enum=testdata.TaskStatus" json:"statuses,omitempty"` // Plural form for enum testing
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -574,6 +575,13 @@ func (x *TestProtoData) GetScores() []int32 {
 	return nil
 }
 
+func (x *TestProtoData) GetStatuses() []TaskStatus {
+	if x != nil {
+		return x.Statuses
+	}
+	return nil
+}
+
 var File_pkg_filter_validator_testdata_testdata_proto protoreflect.FileDescriptor
 
 const file_pkg_filter_validator_testdata_testdata_proto_rawDesc = "" +
@@ -603,7 +611,7 @@ const file_pkg_filter_validator_testdata_testdata_proto_rawDesc = "" +
 	"NestedData\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\aenabled\x18\x02 \x01(\bR\aenabled\x12&\n" +
-	"\x04leaf\x18\x03 \x01(\v2\x12.testdata.LeafDataR\x04leaf\"\xec\x04\n" +
+	"\x04leaf\x18\x03 \x01(\v2\x12.testdata.LeafDataR\x04leaf\"\x9e\x05\n" +
 	"\rTestProtoData\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
 	"\x03age\x18\x02 \x01(\x05R\x03age\x12\x16\n" +
@@ -627,7 +635,8 @@ const file_pkg_filter_validator_testdata_testdata_proto_rawDesc = "" +
 	"\x04data\x18\x11 \x01(\fR\x04data\x12,\n" +
 	"\x06nested\x18\x14 \x01(\v2\x14.testdata.NestedDataR\x06nested\x12\x12\n" +
 	"\x04tags\x18\x15 \x03(\tR\x04tags\x12\x16\n" +
-	"\x06scores\x18\x16 \x03(\x05R\x06scores*v\n" +
+	"\x06scores\x18\x16 \x03(\x05R\x06scores\x120\n" +
+	"\bstatuses\x18\x17 \x03(\x0e2\x14.testdata.TaskStatusR\bstatuses*v\n" +
 	"\n" +
 	"TaskStatus\x12\x1b\n" +
 	"\x17TASK_STATUS_UNSPECIFIED\x10\x00\x12\x16\n" +
@@ -670,11 +679,12 @@ var file_pkg_filter_validator_testdata_testdata_proto_depIdxs = []int32{
 	0, // 3: testdata.TestProtoData.task_status:type_name -> testdata.TaskStatus
 	1, // 4: testdata.TestProtoData.task_result:type_name -> testdata.TaskResult
 	3, // 5: testdata.TestProtoData.nested:type_name -> testdata.NestedData
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	0, // 6: testdata.TestProtoData.statuses:type_name -> testdata.TaskStatus
+	7, // [7:7] is the sub-list for method output_type
+	7, // [7:7] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_pkg_filter_validator_testdata_testdata_proto_init() }

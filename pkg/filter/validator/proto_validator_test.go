@@ -334,7 +334,7 @@ func TestProtoValidator_EnumValidation_ValidValues(t *testing.T) {
 		// Valid enum values (string representation)
 		{"enum with ACTIVE value", `task_status = "TASK_STATUS_ACTIVE"`},
 		{"enum with INACTIVE value", `task_status = "TASK_STATUS_INACTIVE"`},
-		{"enum with PENDING value", `task_status = "TASK_STATUS_COMPLETED"`},
+		{"enum with COMPLETED value", `task_status = "TASK_STATUS_COMPLETED"`},
 		{"enum with UNSPECIFIED value", `task_status = "TASK_STATUS_UNSPECIFIED"`},
 
 		// Valid enum values (prefix-stripped - should match with prefix added)
@@ -392,7 +392,7 @@ func TestProtoValidator_EnumValidation_InvalidValues(t *testing.T) {
 }
 
 // TestProtoValidator_EnumValidation_NonPrefixedEnum_ValidValues tests valid enum values
-// for TaskResult enum which has non-prefixed values (SUCCESS, FAILED, PENDING).
+// for TaskResult enum which has non-prefixed values (SUCCESS, FAILED, COMPLETED).
 // Per proto3 spec, the prefix pattern is recommended but not required.
 func TestProtoValidator_EnumValidation_NonPrefixedEnum_ValidValues(t *testing.T) {
 	testProtoData := &testdata.TestProtoData{}
@@ -405,7 +405,7 @@ func TestProtoValidator_EnumValidation_NonPrefixedEnum_ValidValues(t *testing.T)
 		// Valid non-prefixed enum values
 		{"non-prefixed SUCCESS", `task_result = "SUCCESS"`},
 		{"non-prefixed FAILED", `task_result = "FAILED"`},
-		{"non-prefixed PENDING", `task_result = "PENDING"`},
+		{"non-prefixed COMPLETED", `task_result = "PENDING"`},
 
 		// TASK_RESULT_UNSPECIFIED is actually prefixed (zero value conventionally has prefix)
 		{"prefixed TASK_RESULT_UNSPECIFIED exists", `task_result = "TASK_RESULT_UNSPECIFIED"`},
@@ -439,7 +439,7 @@ func TestProtoValidator_EnumValidation_NonPrefixedEnum_InvalidValues(t *testing.
 		// Prefixed versions don't exist for non-zero values (verify we don't add prefixes where they don't exist)
 		{"prefixed TASK_RESULT_SUCCESS doesn't exist", `task_result = "TASK_RESULT_SUCCESS"`},
 		{"prefixed TASK_RESULT_FAILED doesn't exist", `task_result = "TASK_RESULT_FAILED"`},
-		{"prefixed TASK_RESULT_PENDING doesn't exist", `task_result = "TASK_RESULT_PENDING"`},
+		{"prefixed TASK_RESULT_PENDING doesn't exist", `task_result = "TASK_RESULT_COMPLETED"`},
 	}
 
 	for _, tt := range tests {
@@ -693,6 +693,56 @@ func TestProtoValidator_RepeatedField_BasicHas(t *testing.T) {
 			}
 			if !tt.valid && len(errs) == 0 {
 				t.Errorf("Expected validation error for invalid HAS '%s', got none", tt.filter)
+			}
+		})
+	}
+}
+
+// Phase 6C RED: TestProtoValidator_RepeatedEnum_Has
+//
+// AIP-160 HAS operator should work with repeated enum fields, supporting both:
+// - Prefixed values: statuses:"TASK_STATUS_ACTIVE"
+// - Stripped values: statuses:"ACTIVE" (with prefix auto-added)
+//
+// This reuses the existing enum validation logic with prefix stripping.
+//
+// Expected: These tests should FAIL (RED phase) because validateHas() doesn't
+// yet handle EnumKind elements.
+func TestProtoValidator_RepeatedEnum_Has(t *testing.T) {
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
+
+	tests := []struct {
+		name       string
+		filter     string
+		valid      bool
+		errorCount int
+	}{
+		// Prefix-stripped enum values (user-friendly)
+		{"enum stripped ACTIVE", `statuses:"ACTIVE"`, true, 0},
+		{"enum stripped INACTIVE", `statuses:"INACTIVE"`, true, 0},
+		{"enum stripped COMPLETED", `statuses:"COMPLETED"`, true, 0},
+
+		// Full prefixed enum values (also valid)
+		{"enum full TASK_STATUS_ACTIVE", `statuses:"TASK_STATUS_ACTIVE"`, true, 0},
+		{"enum full TASK_STATUS_INACTIVE", `statuses:"TASK_STATUS_INACTIVE"`, true, 0},
+
+		// Invalid enum value (should fail)
+		{"enum invalid", `statuses:"INVALID_STATUS"`, false, 1},
+		{"enum nonexistent", `statuses:"DOES_NOT_EXIST"`, false, 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+
+			// RED PHASE: These should FAIL because enum validation not in validateHas yet
+			if tt.valid && len(errs) != tt.errorCount {
+				t.Errorf("Expected %d errors for valid enum HAS '%s', got %d: %v",
+					tt.errorCount, tt.filter, len(errs), errs)
+			}
+			if !tt.valid && len(errs) == 0 {
+				t.Errorf("Expected validation error for invalid enum HAS '%s', got none", tt.filter)
 			}
 		})
 	}

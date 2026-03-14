@@ -585,7 +585,35 @@ func (pv *ProtoValidator) validateHas(expr *ast.HasExpression, errors *[]error) 
 	// Step 3: Validate member type matches element type
 	elementKind := fieldDesc.Kind()
 
-	// Get member value kind
+	// Special handling for enum elements
+	if elementKind == protoreflect.EnumKind {
+		// Member must be a string literal for enum check
+		memberKind, ok := pv.getExpressionKind(expr.Member)
+		if !ok {
+			return // getExpressionKind already added error
+		}
+		if memberKind != protoreflect.StringKind {
+			collectionName := expr.Collection.(*ast.Identifier).Value
+			pv.addError(errors, "enum repeated field '%s' requires string value, got %s",
+				collectionName, memberKind)
+			return
+		}
+
+		// Validate enum value exists (with prefix stripping support)
+		stringLit, ok := expr.Member.(*ast.StringLiteral)
+		if !ok {
+			return // Should not happen if getExpressionKind returned StringKind
+		}
+		if !pv.isValidEnumValue(fieldDesc, stringLit.Value) {
+			collectionName := expr.Collection.(*ast.Identifier).Value
+			validValues := pv.getEnumValueNames(fieldDesc)
+			pv.addError(errors, "invalid enum value '%s' for repeated field '%s', valid values: %v",
+				stringLit.Value, collectionName, validValues)
+		}
+		return
+	}
+
+	// Get member value kind (for non-enum types)
 	memberKind, ok := pv.getExpressionKind(expr.Member)
 	if !ok {
 		return // getExpressionKind already added error

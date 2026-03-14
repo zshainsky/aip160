@@ -438,18 +438,9 @@ func isProtoFloatKind(k protoreflect.Kind) bool {
 	return k == protoreflect.FloatKind || k == protoreflect.DoubleKind
 }
 
-// isProtoNumericKind checks if a protoreflect.Kind is numeric.
+// isProtoNumericKind checks if a protoreflect.Kind is numeric (integer or float).
 func isProtoNumericKind(k protoreflect.Kind) bool {
-	switch k {
-	case protoreflect.Int32Kind, protoreflect.Int64Kind,
-		protoreflect.Uint32Kind, protoreflect.Uint64Kind,
-		protoreflect.Sint32Kind, protoreflect.Sint64Kind,
-		protoreflect.Fixed32Kind, protoreflect.Fixed64Kind,
-		protoreflect.Sfixed32Kind, protoreflect.Sfixed64Kind,
-		protoreflect.FloatKind, protoreflect.DoubleKind:
-		return true
-	}
-	return false
+	return isProtoIntegerKind(k) || isProtoFloatKind(k)
 }
 
 // validateLogical validates logical AND/OR expressions.

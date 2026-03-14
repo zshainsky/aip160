@@ -129,44 +129,283 @@ func (TaskResult) EnumDescriptor() ([]byte, []int) {
 	return file_pkg_filter_validator_testdata_testdata_proto_rawDescGZIP(), []int{1}
 }
 
-// TestProtoData contains all field types for ProtoValidator testing.
-// Single message for all scalar types, enums, and operator validation.
-type TestProtoData struct {
+// LeafData contains all scalar types at the deepest nesting level.
+// Allows testing traversal validation for all field types at depth.
+type LeafData struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// String and bytes
-	Name  string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Email string `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
-	Data  []byte `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
-	// Boolean (= and != only)
-	Active bool `protobuf:"varint,4,opt,name=active,proto3" json:"active,omitempty"`
+	Text string `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
+	Data []byte `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
+	// Boolean
+	Flag bool `protobuf:"varint,3,opt,name=flag,proto3" json:"flag,omitempty"`
 	// Enums
-	TaskStatus TaskStatus `protobuf:"varint,5,opt,name=task_status,json=taskStatus,proto3,enum=testdata.TaskStatus" json:"task_status,omitempty"`
-	TaskResult TaskResult `protobuf:"varint,6,opt,name=task_result,json=taskResult,proto3,enum=testdata.TaskResult" json:"task_result,omitempty"`
+	Status TaskStatus `protobuf:"varint,4,opt,name=status,proto3,enum=testdata.TaskStatus" json:"status,omitempty"`
+	Result TaskResult `protobuf:"varint,5,opt,name=result,proto3,enum=testdata.TaskResult" json:"result,omitempty"`
 	// Signed integers
-	Age    int32 `protobuf:"varint,10,opt,name=age,proto3" json:"age,omitempty"`
-	UserId int64 `protobuf:"varint,11,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Count        int32 `protobuf:"varint,6,opt,name=count,proto3" json:"count,omitempty"`
+	Bignum       int64 `protobuf:"varint,7,opt,name=bignum,proto3" json:"bignum,omitempty"`
+	SignedCount  int32 `protobuf:"zigzag32,8,opt,name=signed_count,json=signedCount,proto3" json:"signed_count,omitempty"`
+	SignedBignum int64 `protobuf:"zigzag64,9,opt,name=signed_bignum,json=signedBignum,proto3" json:"signed_bignum,omitempty"`
 	// Unsigned integers
-	Points  uint32 `protobuf:"varint,12,opt,name=points,proto3" json:"points,omitempty"`
-	Balance uint64 `protobuf:"varint,13,opt,name=balance,proto3" json:"balance,omitempty"`
-	// Signed integers (zigzag encoded)
-	Temperature int32 `protobuf:"zigzag32,14,opt,name=temperature,proto3" json:"temperature,omitempty"`
-	Offset      int64 `protobuf:"zigzag64,15,opt,name=offset,proto3" json:"offset,omitempty"`
-	// Fixed-width unsigned
-	FixedId        uint32 `protobuf:"fixed32,16,opt,name=fixed_id,json=fixedId,proto3" json:"fixed_id,omitempty"`
-	FixedTimestamp uint64 `protobuf:"fixed64,17,opt,name=fixed_timestamp,json=fixedTimestamp,proto3" json:"fixed_timestamp,omitempty"`
-	// Fixed-width signed
-	SfixedCoordX int32 `protobuf:"fixed32,18,opt,name=sfixed_coord_x,json=sfixedCoordX,proto3" json:"sfixed_coord_x,omitempty"`
-	SfixedCoordY int64 `protobuf:"fixed64,19,opt,name=sfixed_coord_y,json=sfixedCoordY,proto3" json:"sfixed_coord_y,omitempty"`
+	Ucount  uint32 `protobuf:"varint,10,opt,name=ucount,proto3" json:"ucount,omitempty"`
+	Ubignum uint64 `protobuf:"varint,11,opt,name=ubignum,proto3" json:"ubignum,omitempty"`
+	// Fixed-width integers
+	FixedCount   uint32 `protobuf:"fixed32,12,opt,name=fixed_count,json=fixedCount,proto3" json:"fixed_count,omitempty"`
+	FixedBignum  uint64 `protobuf:"fixed64,13,opt,name=fixed_bignum,json=fixedBignum,proto3" json:"fixed_bignum,omitempty"`
+	SfixedCount  int32  `protobuf:"fixed32,14,opt,name=sfixed_count,json=sfixedCount,proto3" json:"sfixed_count,omitempty"`
+	SfixedBignum int64  `protobuf:"fixed64,15,opt,name=sfixed_bignum,json=sfixedBignum,proto3" json:"sfixed_bignum,omitempty"`
 	// Floating point
-	Score         float32 `protobuf:"fixed32,20,opt,name=score,proto3" json:"score,omitempty"`
-	Rating        float64 `protobuf:"fixed64,21,opt,name=rating,proto3" json:"rating,omitempty"`
+	Score         float32 `protobuf:"fixed32,16,opt,name=score,proto3" json:"score,omitempty"`
+	Rating        float64 `protobuf:"fixed64,17,opt,name=rating,proto3" json:"rating,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LeafData) Reset() {
+	*x = LeafData{}
+	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeafData) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeafData) ProtoMessage() {}
+
+func (x *LeafData) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeafData.ProtoReflect.Descriptor instead.
+func (*LeafData) Descriptor() ([]byte, []int) {
+	return file_pkg_filter_validator_testdata_testdata_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *LeafData) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *LeafData) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+func (x *LeafData) GetFlag() bool {
+	if x != nil {
+		return x.Flag
+	}
+	return false
+}
+
+func (x *LeafData) GetStatus() TaskStatus {
+	if x != nil {
+		return x.Status
+	}
+	return TaskStatus_TASK_STATUS_UNSPECIFIED
+}
+
+func (x *LeafData) GetResult() TaskResult {
+	if x != nil {
+		return x.Result
+	}
+	return TaskResult_TASK_RESULT_UNSPECIFIED
+}
+
+func (x *LeafData) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+func (x *LeafData) GetBignum() int64 {
+	if x != nil {
+		return x.Bignum
+	}
+	return 0
+}
+
+func (x *LeafData) GetSignedCount() int32 {
+	if x != nil {
+		return x.SignedCount
+	}
+	return 0
+}
+
+func (x *LeafData) GetSignedBignum() int64 {
+	if x != nil {
+		return x.SignedBignum
+	}
+	return 0
+}
+
+func (x *LeafData) GetUcount() uint32 {
+	if x != nil {
+		return x.Ucount
+	}
+	return 0
+}
+
+func (x *LeafData) GetUbignum() uint64 {
+	if x != nil {
+		return x.Ubignum
+	}
+	return 0
+}
+
+func (x *LeafData) GetFixedCount() uint32 {
+	if x != nil {
+		return x.FixedCount
+	}
+	return 0
+}
+
+func (x *LeafData) GetFixedBignum() uint64 {
+	if x != nil {
+		return x.FixedBignum
+	}
+	return 0
+}
+
+func (x *LeafData) GetSfixedCount() int32 {
+	if x != nil {
+		return x.SfixedCount
+	}
+	return 0
+}
+
+func (x *LeafData) GetSfixedBignum() int64 {
+	if x != nil {
+		return x.SfixedBignum
+	}
+	return 0
+}
+
+func (x *LeafData) GetScore() float32 {
+	if x != nil {
+		return x.Score
+	}
+	return 0
+}
+
+func (x *LeafData) GetRating() float64 {
+	if x != nil {
+		return x.Rating
+	}
+	return 0
+}
+
+// NestedData represents middle-level nesting with a leaf message.
+type NestedData struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Enabled       bool                   `protobuf:"varint,2,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	Leaf          *LeafData              `protobuf:"bytes,3,opt,name=leaf,proto3" json:"leaf,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NestedData) Reset() {
+	*x = NestedData{}
+	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NestedData) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NestedData) ProtoMessage() {}
+
+func (x *NestedData) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NestedData.ProtoReflect.Descriptor instead.
+func (*NestedData) Descriptor() ([]byte, []int) {
+	return file_pkg_filter_validator_testdata_testdata_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *NestedData) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *NestedData) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *NestedData) GetLeaf() *LeafData {
+	if x != nil {
+		return x.Leaf
+	}
+	return nil
+}
+
+// TestProtoData is the root message for comprehensive ProtoValidator testing.
+// Supports 3-level deep traversal: TestProtoData.nested.leaf.<all_scalar_types>
+type TestProtoData struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Top-level scalar fields for basic validation tests
+	Name       string     `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Age        int32      `protobuf:"varint,2,opt,name=age,proto3" json:"age,omitempty"`
+	Active     bool       `protobuf:"varint,3,opt,name=active,proto3" json:"active,omitempty"`
+	TaskStatus TaskStatus `protobuf:"varint,4,opt,name=task_status,json=taskStatus,proto3,enum=testdata.TaskStatus" json:"task_status,omitempty"`
+	TaskResult TaskResult `protobuf:"varint,5,opt,name=task_result,json=taskResult,proto3,enum=testdata.TaskResult" json:"task_result,omitempty"`
+	// Additional scalar types at top level
+	UserId         int64   `protobuf:"varint,6,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Points         uint32  `protobuf:"varint,7,opt,name=points,proto3" json:"points,omitempty"`
+	Balance        uint64  `protobuf:"varint,8,opt,name=balance,proto3" json:"balance,omitempty"`
+	Temperature    int32   `protobuf:"zigzag32,9,opt,name=temperature,proto3" json:"temperature,omitempty"`
+	Offset         int64   `protobuf:"zigzag64,10,opt,name=offset,proto3" json:"offset,omitempty"`
+	FixedId        uint32  `protobuf:"fixed32,11,opt,name=fixed_id,json=fixedId,proto3" json:"fixed_id,omitempty"`
+	FixedTimestamp uint64  `protobuf:"fixed64,12,opt,name=fixed_timestamp,json=fixedTimestamp,proto3" json:"fixed_timestamp,omitempty"`
+	SfixedCoordX   int32   `protobuf:"fixed32,13,opt,name=sfixed_coord_x,json=sfixedCoordX,proto3" json:"sfixed_coord_x,omitempty"`
+	SfixedCoordY   int64   `protobuf:"fixed64,14,opt,name=sfixed_coord_y,json=sfixedCoordY,proto3" json:"sfixed_coord_y,omitempty"`
+	Score          float32 `protobuf:"fixed32,15,opt,name=score,proto3" json:"score,omitempty"`
+	Rating         float64 `protobuf:"fixed64,16,opt,name=rating,proto3" json:"rating,omitempty"`
+	Data           []byte  `protobuf:"bytes,17,opt,name=data,proto3" json:"data,omitempty"`
+	// Nested structure for traversal testing (1 → 2 → 3 levels deep)
+	// All scalar types also available at leaf for deep traversal validation
+	Nested *NestedData `protobuf:"bytes,20,opt,name=nested,proto3" json:"nested,omitempty"`
+	// Repeated field for future validation
+	Tags          []string `protobuf:"bytes,21,rep,name=tags,proto3" json:"tags,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TestProtoData) Reset() {
 	*x = TestProtoData{}
-	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[0]
+	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -178,7 +417,7 @@ func (x *TestProtoData) String() string {
 func (*TestProtoData) ProtoMessage() {}
 
 func (x *TestProtoData) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[0]
+	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -191,7 +430,7 @@ func (x *TestProtoData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TestProtoData.ProtoReflect.Descriptor instead.
 func (*TestProtoData) Descriptor() ([]byte, []int) {
-	return file_pkg_filter_validator_testdata_testdata_proto_rawDescGZIP(), []int{0}
+	return file_pkg_filter_validator_testdata_testdata_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *TestProtoData) GetName() string {
@@ -201,18 +440,11 @@ func (x *TestProtoData) GetName() string {
 	return ""
 }
 
-func (x *TestProtoData) GetEmail() string {
+func (x *TestProtoData) GetAge() int32 {
 	if x != nil {
-		return x.Email
+		return x.Age
 	}
-	return ""
-}
-
-func (x *TestProtoData) GetData() []byte {
-	if x != nil {
-		return x.Data
-	}
-	return nil
+	return 0
 }
 
 func (x *TestProtoData) GetActive() bool {
@@ -234,13 +466,6 @@ func (x *TestProtoData) GetTaskResult() TaskResult {
 		return x.TaskResult
 	}
 	return TaskResult_TASK_RESULT_UNSPECIFIED
-}
-
-func (x *TestProtoData) GetAge() int32 {
-	if x != nil {
-		return x.Age
-	}
-	return 0
 }
 
 func (x *TestProtoData) GetUserId() int64 {
@@ -320,33 +545,80 @@ func (x *TestProtoData) GetRating() float64 {
 	return 0
 }
 
+func (x *TestProtoData) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+func (x *TestProtoData) GetNested() *NestedData {
+	if x != nil {
+		return x.Nested
+	}
+	return nil
+}
+
+func (x *TestProtoData) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
 var File_pkg_filter_validator_testdata_testdata_proto protoreflect.FileDescriptor
 
 const file_pkg_filter_validator_testdata_testdata_proto_rawDesc = "" +
 	"\n" +
-	",pkg/filter/validator/testdata/testdata.proto\x12\btestdata\"\xa8\x04\n" +
+	",pkg/filter/validator/testdata/testdata.proto\x12\btestdata\"\x84\x04\n" +
+	"\bLeafData\x12\x12\n" +
+	"\x04text\x18\x01 \x01(\tR\x04text\x12\x12\n" +
+	"\x04data\x18\x02 \x01(\fR\x04data\x12\x12\n" +
+	"\x04flag\x18\x03 \x01(\bR\x04flag\x12,\n" +
+	"\x06status\x18\x04 \x01(\x0e2\x14.testdata.TaskStatusR\x06status\x12,\n" +
+	"\x06result\x18\x05 \x01(\x0e2\x14.testdata.TaskResultR\x06result\x12\x14\n" +
+	"\x05count\x18\x06 \x01(\x05R\x05count\x12\x16\n" +
+	"\x06bignum\x18\a \x01(\x03R\x06bignum\x12!\n" +
+	"\fsigned_count\x18\b \x01(\x11R\vsignedCount\x12#\n" +
+	"\rsigned_bignum\x18\t \x01(\x12R\fsignedBignum\x12\x16\n" +
+	"\x06ucount\x18\n" +
+	" \x01(\rR\x06ucount\x12\x18\n" +
+	"\aubignum\x18\v \x01(\x04R\aubignum\x12\x1f\n" +
+	"\vfixed_count\x18\f \x01(\aR\n" +
+	"fixedCount\x12!\n" +
+	"\ffixed_bignum\x18\r \x01(\x06R\vfixedBignum\x12!\n" +
+	"\fsfixed_count\x18\x0e \x01(\x0fR\vsfixedCount\x12#\n" +
+	"\rsfixed_bignum\x18\x0f \x01(\x10R\fsfixedBignum\x12\x14\n" +
+	"\x05score\x18\x10 \x01(\x02R\x05score\x12\x16\n" +
+	"\x06rating\x18\x11 \x01(\x01R\x06rating\"b\n" +
+	"\n" +
+	"NestedData\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
+	"\aenabled\x18\x02 \x01(\bR\aenabled\x12&\n" +
+	"\x04leaf\x18\x03 \x01(\v2\x12.testdata.LeafDataR\x04leaf\"\xd4\x04\n" +
 	"\rTestProtoData\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
-	"\x05email\x18\x02 \x01(\tR\x05email\x12\x12\n" +
-	"\x04data\x18\x03 \x01(\fR\x04data\x12\x16\n" +
-	"\x06active\x18\x04 \x01(\bR\x06active\x125\n" +
-	"\vtask_status\x18\x05 \x01(\x0e2\x14.testdata.TaskStatusR\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
+	"\x03age\x18\x02 \x01(\x05R\x03age\x12\x16\n" +
+	"\x06active\x18\x03 \x01(\bR\x06active\x125\n" +
+	"\vtask_status\x18\x04 \x01(\x0e2\x14.testdata.TaskStatusR\n" +
 	"taskStatus\x125\n" +
-	"\vtask_result\x18\x06 \x01(\x0e2\x14.testdata.TaskResultR\n" +
-	"taskResult\x12\x10\n" +
-	"\x03age\x18\n" +
-	" \x01(\x05R\x03age\x12\x17\n" +
-	"\auser_id\x18\v \x01(\x03R\x06userId\x12\x16\n" +
-	"\x06points\x18\f \x01(\rR\x06points\x12\x18\n" +
-	"\abalance\x18\r \x01(\x04R\abalance\x12 \n" +
-	"\vtemperature\x18\x0e \x01(\x11R\vtemperature\x12\x16\n" +
-	"\x06offset\x18\x0f \x01(\x12R\x06offset\x12\x19\n" +
-	"\bfixed_id\x18\x10 \x01(\aR\afixedId\x12'\n" +
-	"\x0ffixed_timestamp\x18\x11 \x01(\x06R\x0efixedTimestamp\x12$\n" +
-	"\x0esfixed_coord_x\x18\x12 \x01(\x0fR\fsfixedCoordX\x12$\n" +
-	"\x0esfixed_coord_y\x18\x13 \x01(\x10R\fsfixedCoordY\x12\x14\n" +
-	"\x05score\x18\x14 \x01(\x02R\x05score\x12\x16\n" +
-	"\x06rating\x18\x15 \x01(\x01R\x06rating*v\n" +
+	"\vtask_result\x18\x05 \x01(\x0e2\x14.testdata.TaskResultR\n" +
+	"taskResult\x12\x17\n" +
+	"\auser_id\x18\x06 \x01(\x03R\x06userId\x12\x16\n" +
+	"\x06points\x18\a \x01(\rR\x06points\x12\x18\n" +
+	"\abalance\x18\b \x01(\x04R\abalance\x12 \n" +
+	"\vtemperature\x18\t \x01(\x11R\vtemperature\x12\x16\n" +
+	"\x06offset\x18\n" +
+	" \x01(\x12R\x06offset\x12\x19\n" +
+	"\bfixed_id\x18\v \x01(\aR\afixedId\x12'\n" +
+	"\x0ffixed_timestamp\x18\f \x01(\x06R\x0efixedTimestamp\x12$\n" +
+	"\x0esfixed_coord_x\x18\r \x01(\x0fR\fsfixedCoordX\x12$\n" +
+	"\x0esfixed_coord_y\x18\x0e \x01(\x10R\fsfixedCoordY\x12\x14\n" +
+	"\x05score\x18\x0f \x01(\x02R\x05score\x12\x16\n" +
+	"\x06rating\x18\x10 \x01(\x01R\x06rating\x12\x12\n" +
+	"\x04data\x18\x11 \x01(\fR\x04data\x12,\n" +
+	"\x06nested\x18\x14 \x01(\v2\x14.testdata.NestedDataR\x06nested\x12\x12\n" +
+	"\x04tags\x18\x15 \x03(\tR\x04tags*v\n" +
 	"\n" +
 	"TaskStatus\x12\x1b\n" +
 	"\x17TASK_STATUS_UNSPECIFIED\x10\x00\x12\x16\n" +
@@ -374,20 +646,26 @@ func file_pkg_filter_validator_testdata_testdata_proto_rawDescGZIP() []byte {
 }
 
 var file_pkg_filter_validator_testdata_testdata_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_pkg_filter_validator_testdata_testdata_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_pkg_filter_validator_testdata_testdata_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_pkg_filter_validator_testdata_testdata_proto_goTypes = []any{
 	(TaskStatus)(0),       // 0: testdata.TaskStatus
 	(TaskResult)(0),       // 1: testdata.TaskResult
-	(*TestProtoData)(nil), // 2: testdata.TestProtoData
+	(*LeafData)(nil),      // 2: testdata.LeafData
+	(*NestedData)(nil),    // 3: testdata.NestedData
+	(*TestProtoData)(nil), // 4: testdata.TestProtoData
 }
 var file_pkg_filter_validator_testdata_testdata_proto_depIdxs = []int32{
-	0, // 0: testdata.TestProtoData.task_status:type_name -> testdata.TaskStatus
-	1, // 1: testdata.TestProtoData.task_result:type_name -> testdata.TaskResult
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	0, // 0: testdata.LeafData.status:type_name -> testdata.TaskStatus
+	1, // 1: testdata.LeafData.result:type_name -> testdata.TaskResult
+	2, // 2: testdata.NestedData.leaf:type_name -> testdata.LeafData
+	0, // 3: testdata.TestProtoData.task_status:type_name -> testdata.TaskStatus
+	1, // 4: testdata.TestProtoData.task_result:type_name -> testdata.TaskResult
+	3, // 5: testdata.TestProtoData.nested:type_name -> testdata.NestedData
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_pkg_filter_validator_testdata_testdata_proto_init() }
@@ -401,7 +679,7 @@ func file_pkg_filter_validator_testdata_testdata_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pkg_filter_validator_testdata_testdata_proto_rawDesc), len(file_pkg_filter_validator_testdata_testdata_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   1,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

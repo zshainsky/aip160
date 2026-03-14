@@ -56,10 +56,10 @@ func TestProtoValidator_FieldExists(t *testing.T) {
 		t.Errorf("Expected no errors for existing fields, got: %v", errs)
 	}
 
-	// Test all scalar field types
-	errs = validateProtoFilter(t, `email = "test@example.com"`, msgDesc)
+	// Test another string field
+	errs = validateProtoFilter(t, `name = "test"`, msgDesc)
 	if len(errs) > 0 {
-		t.Errorf("Expected no errors for existing field 'email', got: %v", errs)
+		t.Errorf("Expected no errors for existing field 'name', got: %v", errs)
 	}
 }
 
@@ -90,7 +90,7 @@ func TestProtoValidator_MultipleFields(t *testing.T) {
 	msgDesc := testProtoData.ProtoReflect().Descriptor()
 
 	// All valid fields should pass
-	errs := validateProtoFilter(t, `name = "John" AND age = 25 AND email = "test@example.com"`, msgDesc)
+	errs := validateProtoFilter(t, `name = "John" AND age = 25 AND active = true`, msgDesc)
 	if len(errs) > 0 {
 		t.Errorf("Expected no errors for all valid fields, got: %v", errs)
 	}
@@ -455,19 +455,28 @@ func TestProtoValidator_EnumValidation_NonPrefixedEnum_InvalidValues(t *testing.
 // === Nested Traversal Tests (TDD Cycle 5) ===
 
 // TestProtoValidator_NestedTraversal_Valid tests valid nested field access.
-// Tests one-level and three-level deep nesting.
+// Tests one-level, two-level, and three-level deep nesting with all scalar types.
 func TestProtoValidator_NestedTraversal_Valid(t *testing.T) {
-	contact := &testdata.Contact{}
-	msgDesc := contact.ProtoReflect().Descriptor()
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
 
 	tests := []struct {
 		name   string
 		filter string
 	}{
-		{"one level string", `email.address = "test@example.com"`},
-		{"one level bool", `email.verified = true`},
-		{"three level deep", `email.metadata.source = "web"`},
-		{"three level deep int", `email.metadata.priority = 5`},
+		// One level deep
+		{"one level string", `nested.name = "test"`},
+		{"one level bool", `nested.enabled = true`},
+		
+		// Two levels deep - all scalar types at leaf
+		{"two level string", `nested.leaf.text = "value"`},
+		{"two level bool", `nested.leaf.flag = false`},
+		{"two level int32", `nested.leaf.count = 42`},
+		{"two level int64", `nested.leaf.bignum = 1000`},
+		{"two level uint32", `nested.leaf.ucount = 99`},
+		{"two level float", `nested.leaf.score = 3.14`},
+		{"two level double", `nested.leaf.rating = 4.5`},
+		{"two level enum", `nested.leaf.status = "TASK_STATUS_ACTIVE"`},
 	}
 
 	for _, tt := range tests {
@@ -482,16 +491,16 @@ func TestProtoValidator_NestedTraversal_Valid(t *testing.T) {
 
 // TestProtoValidator_NestedTraversal_InvalidField tests traversal with non-existent nested fields.
 func TestProtoValidator_NestedTraversal_InvalidField(t *testing.T) {
-	contact := &testdata.Contact{}
-	msgDesc := contact.ProtoReflect().Descriptor()
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
 
 	tests := []struct {
 		name   string
 		filter string
 	}{
-		{"nested field doesn't exist", `email.invalid = "test"`},
+		{"nested field doesn't exist", `nested.invalid = "test"`},
 		{"top level doesn't exist", `nonexistent.field = "test"`},
-		{"three level deep invalid", `email.metadata.invalid = "test"`},
+		{"two level deep invalid", `nested.leaf.invalid = "test"`},
 	}
 
 	for _, tt := range tests {
@@ -509,22 +518,23 @@ func TestProtoValidator_NestedTraversal_InvalidField(t *testing.T) {
 // are primitive values and cannot be traversed with dot notation.
 //
 // Examples:
-//   - VALID:   email.address         (email is a Message with an 'address' field)
+//   - VALID:   nested.leaf.text         (nested and leaf are Messages)
 //   - INVALID: name.something         (name is a string - strings have no sub-fields)
-//   - INVALID: email.verified.nope    (verified is a bool - cannot traverse further)
+//   - INVALID: nested.enabled.nope    (enabled is a bool - cannot traverse further)
 //
 // This test ensures the validator catches these semantic errors and provides clear error messages
 // explaining that you cannot traverse into non-message fields.
 func TestProtoValidator_NestedTraversal_NonMessageType(t *testing.T) {
-	contact := &testdata.Contact{}
-	msgDesc := contact.ProtoReflect().Descriptor()
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
 
 	tests := []struct {
 		name   string
 		filter string
 	}{
 		{"traverse into string", `name.invalid = "test"`},
-		{"traverse into bool", `email.verified.nope = "test"`},
+		{"traverse into bool", `nested.enabled.nope = "test"`},
+		{"traverse into int at leaf", `nested.leaf.count.nope = 5`},
 	}
 
 	for _, tt := range tests {
@@ -542,13 +552,13 @@ func TestProtoValidator_NestedTraversal_NonMessageType(t *testing.T) {
 // it does for top-level fields.
 //
 // Examples:
-//   - email.address (string) can be compared with string literals
-//   - email.verified (bool) can be compared with boolean literals
-//   - email.metadata.priority (int32) can be compared with integer literals
+//   - nested.leaf.text (string) can be compared with string literals
+//   - nested.leaf.flag (bool) can be compared with boolean literals
+//   - nested.leaf.count (int32) can be compared with integer literals
 //   - Type mismatches should be rejected (e.g., comparing string field with number)
 func TestProtoValidator_NestedTraversal_TypeValidation(t *testing.T) {
-	contact := &testdata.Contact{}
-	msgDesc := contact.ProtoReflect().Descriptor()
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
 
 	tests := []struct {
 		name   string
@@ -556,16 +566,16 @@ func TestProtoValidator_NestedTraversal_TypeValidation(t *testing.T) {
 		valid  bool
 	}{
 		// Valid type matches
-		{"string with string", `email.address = "test@example.com"`, true},
-		{"bool with bool", `email.verified = true`, true},
-		{"int with int", `email.metadata.priority = 5`, true},
-		{"three level string", `email.metadata.source = "web"`, true},
+		{"string with string", `nested.leaf.text = "value"`, true},
+		{"bool with bool", `nested.leaf.flag = true`, true},
+		{"int with int", `nested.leaf.count = 42`, true},
+		{"float with float", `nested.leaf.score = 3.14`, true},
 		
 		// Invalid type mismatches
-		{"string with number", `email.address = 123`, false},
-		{"bool with string", `email.verified = "true"`, false},
-		{"int with string", `email.metadata.priority = "high"`, false},
-		{"string with bool", `email.metadata.source = true`, false},
+		{"string with number", `nested.leaf.text = 123`, false},
+		{"bool with string", `nested.leaf.flag = "true"`, false},
+		{"int with string", `nested.leaf.count = "high"`, false},
+		{"float with bool", `nested.leaf.score = true`, false},
 	}
 
 	for _, tt := range tests {

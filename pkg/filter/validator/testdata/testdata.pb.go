@@ -516,7 +516,8 @@ type TestProtoData struct {
 	Tags          []string     `protobuf:"bytes,21,rep,name=tags,proto3" json:"tags,omitempty"`
 	Scores        []int32      `protobuf:"varint,22,rep,packed,name=scores,proto3" json:"scores,omitempty"`
 	Statuses      []TaskStatus `protobuf:"varint,23,rep,packed,name=statuses,proto3,enum=testdata.TaskStatus" json:"statuses,omitempty"` // Plural form for enum testing
-	Emails        []*Email     `protobuf:"bytes,24,rep,name=emails,proto3" json:"emails,omitempty"`                                      // Plural form for nested message HAS testing
+	Email         *Email       `protobuf:"bytes,24,opt,name=email,proto3" json:"email,omitempty"`                                        // Singular form for message presence HAS testing
+	Emails        []*Email     `protobuf:"bytes,25,rep,name=emails,proto3" json:"emails,omitempty"`                                      // Plural form for nested message HAS testing
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -698,6 +699,13 @@ func (x *TestProtoData) GetStatuses() []TaskStatus {
 	return nil
 }
 
+func (x *TestProtoData) GetEmail() *Email {
+	if x != nil {
+		return x.Email
+	}
+	return nil
+}
+
 func (x *TestProtoData) GetEmails() []*Email {
 	if x != nil {
 		return x.Emails
@@ -741,7 +749,7 @@ const file_pkg_filter_validator_testdata_testdata_proto_rawDesc = "" +
 	"NestedData\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\aenabled\x18\x02 \x01(\bR\aenabled\x12&\n" +
-	"\x04leaf\x18\x03 \x01(\v2\x12.testdata.LeafDataR\x04leaf\"\xc7\x05\n" +
+	"\x04leaf\x18\x03 \x01(\v2\x12.testdata.LeafDataR\x04leaf\"\xee\x05\n" +
 	"\rTestProtoData\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
 	"\x03age\x18\x02 \x01(\x05R\x03age\x12\x16\n" +
@@ -766,8 +774,9 @@ const file_pkg_filter_validator_testdata_testdata_proto_rawDesc = "" +
 	"\x06nested\x18\x14 \x01(\v2\x14.testdata.NestedDataR\x06nested\x12\x12\n" +
 	"\x04tags\x18\x15 \x03(\tR\x04tags\x12\x16\n" +
 	"\x06scores\x18\x16 \x03(\x05R\x06scores\x120\n" +
-	"\bstatuses\x18\x17 \x03(\x0e2\x14.testdata.TaskStatusR\bstatuses\x12'\n" +
-	"\x06emails\x18\x18 \x03(\v2\x0f.testdata.EmailR\x06emails*v\n" +
+	"\bstatuses\x18\x17 \x03(\x0e2\x14.testdata.TaskStatusR\bstatuses\x12%\n" +
+	"\x05email\x18\x18 \x01(\v2\x0f.testdata.EmailR\x05email\x12'\n" +
+	"\x06emails\x18\x19 \x03(\v2\x0f.testdata.EmailR\x06emails*v\n" +
 	"\n" +
 	"TaskStatus\x12\x1b\n" +
 	"\x17TASK_STATUS_UNSPECIFIED\x10\x00\x12\x16\n" +
@@ -806,20 +815,21 @@ var file_pkg_filter_validator_testdata_testdata_proto_goTypes = []any{
 	(*TestProtoData)(nil), // 6: testdata.TestProtoData
 }
 var file_pkg_filter_validator_testdata_testdata_proto_depIdxs = []int32{
-	0, // 0: testdata.LeafData.status:type_name -> testdata.TaskStatus
-	1, // 1: testdata.LeafData.result:type_name -> testdata.TaskResult
-	4, // 2: testdata.Email.metadata:type_name -> testdata.EmailMetadata
-	2, // 3: testdata.NestedData.leaf:type_name -> testdata.LeafData
-	0, // 4: testdata.TestProtoData.task_status:type_name -> testdata.TaskStatus
-	1, // 5: testdata.TestProtoData.task_result:type_name -> testdata.TaskResult
-	5, // 6: testdata.TestProtoData.nested:type_name -> testdata.NestedData
-	0, // 7: testdata.TestProtoData.statuses:type_name -> testdata.TaskStatus
-	3, // 8: testdata.TestProtoData.emails:type_name -> testdata.Email
-	9, // [9:9] is the sub-list for method output_type
-	9, // [9:9] is the sub-list for method input_type
-	9, // [9:9] is the sub-list for extension type_name
-	9, // [9:9] is the sub-list for extension extendee
-	0, // [0:9] is the sub-list for field type_name
+	0,  // 0: testdata.LeafData.status:type_name -> testdata.TaskStatus
+	1,  // 1: testdata.LeafData.result:type_name -> testdata.TaskResult
+	4,  // 2: testdata.Email.metadata:type_name -> testdata.EmailMetadata
+	2,  // 3: testdata.NestedData.leaf:type_name -> testdata.LeafData
+	0,  // 4: testdata.TestProtoData.task_status:type_name -> testdata.TaskStatus
+	1,  // 5: testdata.TestProtoData.task_result:type_name -> testdata.TaskResult
+	5,  // 6: testdata.TestProtoData.nested:type_name -> testdata.NestedData
+	0,  // 7: testdata.TestProtoData.statuses:type_name -> testdata.TaskStatus
+	3,  // 8: testdata.TestProtoData.email:type_name -> testdata.Email
+	3,  // 9: testdata.TestProtoData.emails:type_name -> testdata.Email
+	10, // [10:10] is the sub-list for method output_type
+	10, // [10:10] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_pkg_filter_validator_testdata_testdata_proto_init() }

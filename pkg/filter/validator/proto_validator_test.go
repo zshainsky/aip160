@@ -800,3 +800,49 @@ func TestProtoValidator_RepeatedMessage_NestedHas(t *testing.T) {
 		})
 	}
 }
+
+// TestProtoValidator_SingularMessage_Has tests HAS operator with singular message fields (Phase 6E).
+
+// TestProtoValidator_SingularMessage_Has tests HAS operator with singular message fields (Phase 6E).
+// Per AIP-160: "m:* True if message field m is present (non-default value)".
+func TestProtoValidator_SingularMessage_Has(t *testing.T) {
+	tests := []struct {
+		name    string
+		filter  string
+		wantErr bool
+		errCnt  int
+	}{
+		// E1: Singular message presence check with star operator
+		// Note: Parser limitation - star operator not yet supported, will test when available
+		// {"message field present", `email:*`, false, 0},
+
+		// E2: HAS operator with nested field in singular message
+		{"nested field has", `email.address:"test@example.com"`, false, 0},
+		{"nested metadata has", `email.metadata.source:"web"`, false, 0},
+
+		// E3: HAS vs comparison - both should work for scalars in messages
+		{"comparison on message field", `email.address = "test"`, false, 0}, // Comparison ✅
+		{"has on message field", `email.address:"test"`, false, 0},          // HAS ✅
+
+		// E4: Cannot use star operator on scalar fields
+		// Note: Parser limitation - star operator not yet supported, will test when available
+		// {"scalar star invalid", `name:*`, true, 1},  // ❌ name is string, not message
+
+		// E5: Invalid enum values in singular message nested field
+		{"invalid enum in message", `email.metadata.priority:"INVALID"`, true, 1},
+	}
+
+	msgDesc := (&testdata.TestProtoData{}).ProtoReflect().Descriptor()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+			if (len(errs) > 0) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", errs, tt.wantErr)
+			}
+			if len(errs) != tt.errCnt {
+				t.Errorf("Validate() error count = %d, want %d. Errors: %v", len(errs), tt.errCnt, errs)
+			}
+		})
+	}
+}

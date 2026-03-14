@@ -572,15 +572,14 @@ func (pv *ProtoValidator) validateHas(expr *ast.HasExpression, errors *[]error) 
 		collectionPath = coll.Value
 
 	case *ast.TraversalExpression:
-		// Nested HAS: emails.address, emails.metadata.source, nested.leaf.leaf_tags
-		// For repeated message HAS, we need to:
-		// 1. Find the first repeated field in the path (e.g., "emails")
-		// 2. Get the rest of the path after the repeated field (e.g., "address")
-		// 3. Validate the nested path exists in the repeated message element type
-
-		// For now, assume the LEFT side is the repeated field and RIGHT is the nested path
-		// This handles emails.address but not deeper nesting yet
-		// TODO: Handle multi-level nesting like nested.leaf.leaf_tags (need to find repeated field in chain)
+		// Nested HAS expressions:
+		// - Repeated messages: emails.address:"test" (check if any email has address="test")
+		// - Singular messages: email.address:"test" (check nested field in singular message)
+		// - Deep nesting: emails.metadata.source:"web", nested.leaf.leaf_tags:"critical"
+		//
+		// Strategy:
+		// 1. Check if left part is repeated → resolve right part within element type
+		// 2. If not repeated → resolve full path (handles singular messages + deep nesting)
 
 		// Try to resolve just the left part
 		leftFieldDesc := pv.resolveFieldFromExpression(coll.Left, pv.descriptor)
@@ -591,7 +590,7 @@ func (pv *ProtoValidator) validateHas(expr *ast.HasExpression, errors *[]error) 
 
 		// Check if left part is repeated
 		if leftFieldDesc.IsList() {
-			// Left is repeated - resolve right part within element type
+			// REPEATED MESSAGE: Left is repeated - resolve right part within element type
 			if leftFieldDesc.Kind() != protoreflect.MessageKind {
 				pv.addError(errors, "cannot traverse into repeated field '%s' of non-message type %s",
 					pv.getFieldPath(coll.Left), leftFieldDesc.Kind())
@@ -608,7 +607,11 @@ func (pv *ProtoValidator) validateHas(expr *ast.HasExpression, errors *[]error) 
 			}
 			collectionPath = pv.getFieldPath(coll)
 		} else {
-			// Left is not repeated - resolve full path and check if final field is repeated
+			// SINGULAR MESSAGE OR DEEP NESTING: Left is not repeated
+			// Examples:
+			// - email.address:"test" (singular message field)
+			// - nested.leaf.leaf_tags:"critical" (repeated field at end of path)
+			// Resolve full path - handles both cases
 			fieldDesc, _ = pv.resolveFieldDescriptor(coll, pv.descriptor, errors)
 			if fieldDesc == nil {
 				return // resolveFieldDescriptor already added errors
@@ -621,24 +624,22 @@ func (pv *ProtoValidator) validateHas(expr *ast.HasExpression, errors *[]error) 
 		return
 	}
 
-	// Step 2: Check if this is actually a repeated field somewhere in the path
-	// For simple cases (tags, scores), fieldDesc.IsList() will be true
-	// For nested cases (emails.address, nested.leaf.leaf_tags), we already validated
-	// the path and fieldDesc is the final field to check against
+	// Step 2: Validate field type compatibility with HAS operator
+	// HAS operator can be used on:
+	// - Repeated fields (any type) - validates element type
+	// - Nested fields in messages (repeated or singular) - validates nested field type
+	// - Maps (TODO: not yet implemented)
 
-	// If field descriptor is NOT a list, it means we have a nested path like emails.address
-	// In this case, we DON'T error - we've already resolved through the repeated field
-	// and fieldDesc is now the nested field type to validate against
-
-	// Only error if it's a simple identifier (not traversal) and not repeated
+	// For simple identifiers (not traversals), field must be repeated
 	if !fieldDesc.IsList() {
 		if _, isSimple := expr.Collection.(*ast.Identifier); isSimple {
-			// Simple identifier that's not repeated - invalid for HAS
-			// TODO: Handle maps and messages (Phases 6E/6F)
-			pv.addError(errors, "HAS operator currently only supports repeated fields, got %s", fieldDesc.Kind())
+			// Simple identifier that's not repeated
+			// TODO: Support m:* for message presence checks when parser supports star
+			pv.addError(errors, "HAS operator on simple fields requires repeated field, got singular %s", fieldDesc.Kind())
 			return
 		}
-		// For TraversalExpression, fieldDesc is the nested field - continue to type checking
+		// For TraversalExpression: fieldDesc is the nested field (can be singular or repeated)
+		// Both work: email.address:"test" (singular message) and emails.address:"test" (repeated)
 	}
 
 	// Step 3: Validate member type matches element/field type

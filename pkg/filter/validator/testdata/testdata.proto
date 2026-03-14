@@ -111,5 +111,6 @@ message TestProtoData {
   repeated string tags = 21;
   repeated int32 scores = 22;
   repeated TaskStatus statuses = 23;  // Plural form for enum testing
-  repeated Email emails = 24;  // Plural form for nested message HAS testing
+  Email email = 24;                   // Singular form for message presence HAS testing
+  repeated Email emails = 25;         // Plural form for nested message HAS testing
 }

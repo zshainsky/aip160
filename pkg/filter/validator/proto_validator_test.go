@@ -1,0 +1,906 @@
+package validator
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/zshainsky/aip160/pkg/filter/lexer"
+	"github.com/zshainsky/aip160/pkg/filter/parser"
+	"github.com/zshainsky/aip160/pkg/filter/validator/testdata"
+	"google.golang.org/protobuf/reflect/protoreflect"
+)
+
+// TODO: Parser Limitation - Negative Literals Not Supported
+// The current filter parser does not support negative number literals (e.g., -10, -3.14).
+// When the parser is updated to support negative literals, uncomment the TODO test cases
+// throughout this file to test:
+//   - Signed integer types (int32, int64, sint32, sint64, sfixed32, sfixed64) accept negatives
+//   - Unsigned integer types (uint32, uint64, fixed32, fixed64) reject negatives
+//   - Float types (float, double) accept negative decimals
+//   - Negative scientific notation (e.g., -1.5e-3)
+//
+// Current workaround: Use comparison operators (e.g., temperature < 0 instead of temperature = -10)
+
+// validateProtoFilter is a helper function that parses a filter string and validates it
+// against a proto message descriptor. Returns validation errors.
+func validateProtoFilter(t *testing.T, filterStr string, msgDesc protoreflect.MessageDescriptor) []error {
+	t.Helper()
+
+	l := lexer.New(filterStr)
+	p := parser.New(l)
+	ast := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("Failed to parse filter '%s': %v", filterStr, p.Errors())
+	}
+
+	validator := NewProtoValidator(msgDesc)
+	return validator.Validate(ast)
+}
+
+// TestProtoValidator_FieldExists tests that validation passes for existing fields
+// 🔴 RED: This test should FAIL initially because validator is just a stub
+func TestProtoValidator_FieldExists(t *testing.T) {
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
+
+	// Test single field that exists
+	errs := validateProtoFilter(t, `name = "John"`, msgDesc)
+	if len(errs) > 0 {
+		t.Errorf("Expected no errors for existing field 'name', got: %v", errs)
+	}
+
+	// Test multiple existing fields
+	errs = validateProtoFilter(t, `name = "John" AND age = 25`, msgDesc)
+	if len(errs) > 0 {
+		t.Errorf("Expected no errors for existing fields, got: %v", errs)
+	}
+
+	// Test another string field
+	errs = validateProtoFilter(t, `name = "test"`, msgDesc)
+	if len(errs) > 0 {
+		t.Errorf("Expected no errors for existing field 'name', got: %v", errs)
+	}
+}
+
+// TestProtoValidator_FieldDoesNotExist tests that validation fails for non-existent fields
+// 🔴 RED: This test should FAIL initially because validator returns empty errors
+func TestProtoValidator_FieldDoesNotExist(t *testing.T) {
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
+
+	// Test non-existent field
+	errs := validateProtoFilter(t, `invalid_field = "test"`, msgDesc)
+	if len(errs) == 0 {
+		t.Error("Expected error for non-existent field 'invalid_field', got no errors")
+		return
+	}
+
+	// Verify error message mentions the field
+	errStr := errs[0].Error()
+	if !strings.Contains(errStr, "invalid_field") {
+		t.Errorf("Error should mention 'invalid_field', got: %s", errStr)
+	}
+}
+
+// TestProtoValidator_MultipleFields tests validation with multiple field references
+// 🔴 RED: This test should FAIL initially
+func TestProtoValidator_MultipleFields(t *testing.T) {
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
+
+	// All valid fields should pass
+	errs := validateProtoFilter(t, `name = "John" AND age = 25 AND active = true`, msgDesc)
+	if len(errs) > 0 {
+		t.Errorf("Expected no errors for all valid fields, got: %v", errs)
+	}
+
+	// Mix of valid and invalid should report only invalid
+	errs = validateProtoFilter(t, `name = "John" AND invalid_field = "test"`, msgDesc)
+	if len(errs) == 0 {
+		t.Error("Expected error for 'invalid_field'")
+		return
+	}
+	if len(errs) != 1 {
+		t.Errorf("Expected 1 error, got %d: %v", len(errs), errs)
+	}
+}
+
+// TestProtoValidator_MultipleInvalidFields tests that all invalid fields are reported
+// 🔴 RED: This test should FAIL initially
+func TestProtoValidator_MultipleInvalidFields(t *testing.T) {
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
+
+	// Multiple invalid fields should all be reported
+	errs := validateProtoFilter(t, `invalid1 = "test" AND invalid2 = "test"`, msgDesc)
+	if len(errs) < 2 {
+		t.Errorf("Expected at least 2 errors for invalid fields, got %d: %v", len(errs), errs)
+	}
+}
+
+// ============================================================================
+// TDD Cycle 2: Type Compatibility Tests
+// ============================================================================
+
+// TestProtoValidator_TypeCompatibility_ValidTypes tests valid type combinations
+// Tests ALL 15 proto3 scalar types for comprehensive coverage
+func TestProtoValidator_ScientificNotation(t *testing.T) {
+	tests := []struct {
+		name   string
+		filter string
+		valid  bool
+	}{
+		// Float fields accept scientific notation with or without fractional parts
+		{"float with scientific notation", `score = 2.997e9`, true},
+		{"float with negative exponent", `score = 1.5E-3`, true},
+		{"float with integer scientific", `score = 3e10`, true},
+
+		// Integer fields accept scientific notation that resolves to integer
+		{"int32 with integer scientific", `age = 3e10`, true},
+
+		// Integer fields reject scientific notation with fractional parts
+		{"int32 with fractional scientific", `age = 1.5E-3`, false},
+		{"uint64 with fractional scientific", `balance = 1.5E-3`, false},
+
+		// TODO: Add negative scientific notation tests when parser supports negative literals
+		// {"float with negative scientific", `score = -2.997e9`, true},
+		// {"int32 with negative scientific", `temperature = -1.5e2`, false}, // Has fractional part
+		// {"sint32 with negative integer scientific", `temperature = -3e2`, true}, // -300 is valid
+	}
+
+	msg := &testdata.TestProtoData{}
+	msgDesc := msg.ProtoReflect().Descriptor()
+	pv := NewProtoValidator(msgDesc)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.filter)
+			p := parser.New(l)
+			program := p.ParseProgram()
+
+			err := pv.Validate(program)
+
+			if tt.valid {
+				if err != nil {
+					t.Errorf("Expected no error, got: %v", err)
+				}
+			} else {
+				if err == nil {
+					t.Errorf("Expected error, got nil")
+				}
+			}
+		})
+	}
+}
+
+func TestProtoValidator_TypeCompatibility_ValidTypes(t *testing.T) {
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
+
+	tests := []struct {
+		name   string
+		filter string
+	}{
+		// String types
+		{"string field with string literal", `name = "John"`},
+		{"bytes field with string literal", `data = "data"`},
+
+		// Boolean
+		{"bool field with boolean literal", `active = true`},
+		{"bool field with false literal", `active = false`},
+
+		// Standard signed integers
+		{"int32 field with integer literal", `age = 25`},
+		{"int64 field with integer literal", `user_id = 12345`},
+		// TODO: Add negative literal tests when parser supports negative numbers (e.g., age = -10)
+		// Currently parser doesn't support negative literals directly
+		// {"int32 field with negative literal", `age = -10`},
+		// {"int64 field with negative literal", `user_id = -999`},
+
+		// Unsigned integers
+		{"uint32 field with integer literal", `points = 100`},
+		{"uint64 field with integer literal", `balance = 99999`},
+		// TODO: Add test to reject negative literals on unsigned fields when parser supports them
+		// {"uint32 field with negative literal", `points = -100`}, // Should fail
+		// {"uint64 field with negative literal", `balance = -999`}, // Should fail
+
+		// Signed integers (optimized for negatives)
+		{"sint32 field with integer literal", `temperature = 72`},
+		{"sint64 field with integer literal", `offset = 1000`},
+		// TODO: Add negative literal tests when parser supports them
+		// sint32/sint64 are specifically optimized for negative values via ZigZag encoding
+		// {"sint32 field with negative literal", `temperature = -40`},
+		// {"sint64 field with negative literal", `offset = -12345`},
+
+		// Fixed-width unsigned integers
+		{"fixed32 field with integer literal", `fixed_id = 12345`},
+		{"fixed64 field with integer literal", `fixed_timestamp = 1234567890`},
+		// TODO: Add test to reject negative literals when parser supports them
+		// {"fixed32 field with negative literal", `fixed_id = -100`}, // Should fail
+
+		// Fixed-width signed integers
+		{"sfixed32 field with integer literal", `sfixed_coord_x = 100`},
+		{"sfixed64 field with integer literal", `sfixed_coord_y = 200`},
+		// TODO: Add negative literal tests when parser supports them
+		// {"sfixed32 field with negative literal", `sfixed_coord_x = -100`},
+		// {"sfixed64 field with negative literal", `sfixed_coord_y = -200`},
+
+		// Floating point
+		{"float field with float literal", `score = 3.14`},
+		{"float field with integer literal", `score = 42`},
+		{"double field with float literal", `rating = 4.5`},
+		{"double field with integer literal", `rating = 5`},
+		// TODO: Add negative literal tests when parser supports them
+		// {"float field with negative literal", `score = -3.14`},
+		// {"double field with negative literal", `rating = -4.5`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+			if len(errs) > 0 {
+				t.Errorf("Expected no errors for %s, got: %v", tt.name, errs)
+			}
+		})
+	}
+}
+
+// TestProtoValidator_TypeCompatibility_InvalidTypes tests invalid type combinations
+// Tests rejection of incompatible literals for all integer types
+func TestProtoValidator_TypeCompatibility_InvalidTypes(t *testing.T) {
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
+
+	tests := []struct {
+		name   string
+		filter string
+	}{
+		// String type errors
+		{"string field with number literal", `name = 123`},
+		{"bytes field with number literal", `data = 456`},
+
+		// Boolean type errors
+		{"bool field with string literal", `active = "true"`},
+		{"bool field with number literal", `active = 1`},
+
+		// Standard signed integer errors
+		{"int32 field with string literal", `age = "twenty five"`},
+		{"int32 field with boolean literal", `age = true`},
+		{"int32 field with float literal", `age = 23.55`},
+		{"int64 field with string literal", `user_id = "12345"`},
+		{"int64 field with float literal", `user_id = 123.45`},
+
+		// Unsigned integer errors
+		{"uint32 field with string literal", `points = "100"`},
+		{"uint32 field with float literal", `points = 10.5`},
+		{"uint32 field with boolean literal", `points = false`},
+		{"uint64 field with string literal", `balance = "99999"`},
+		{"uint64 field with float literal", `balance = 999.99`},
+		// TODO: Add tests for negative literals on unsigned fields when parser supports them
+		// These should properly fail validation (can't assign negative to unsigned)
+		// {"uint32 field with negative literal", `points = -100`},
+		// {"uint64 field with negative literal", `balance = -999`},
+
+		// Signed integer (optimized) errors
+		{"sint32 field with string literal", `temperature = "cold"`},
+		{"sint32 field with boolean literal", `temperature = true`},
+		{"sint64 field with string literal", `offset = "large"`},
+		{"sint64 field with float literal", `offset = 100.25`},
+
+		// Fixed-width unsigned integer errors
+		{"fixed32 field with string literal", `fixed_id = "abc"`},
+		{"fixed32 field with float literal", `fixed_id = 123.45`},
+		{"fixed64 field with string literal", `fixed_timestamp = "now"`},
+		{"fixed64 field with float literal", `fixed_timestamp = 123.456`},
+
+		// Fixed-width signed integer errors
+		{"sfixed32 field with string literal", `sfixed_coord_x = "left"`},
+		{"sfixed32 field with float literal", `sfixed_coord_x = 10.5`},
+		{"sfixed64 field with string literal", `sfixed_coord_y = "top"`},
+		{"sfixed64 field with float literal", `sfixed_coord_y = 20.5`},
+
+		// Float type errors (floats accept integers but not strings/bools)
+		{"float field with string literal", `score = "3.14"`},
+		{"float field with boolean literal", `score = true`},
+		{"double field with string literal", `rating = "4.5"`},
+		{"double field with boolean literal", `rating = false`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+			if len(errs) == 0 {
+				t.Errorf("Expected type error for %s, got no errors", tt.name)
+			}
+		})
+	}
+}
+
+// ============================================================================
+// TDD Cycle 3: Enum Validation Tests (RED Phase)
+// ============================================================================
+
+// TestProtoValidator_EnumValidation_ValidValues tests that enum fields
+// accept valid enum value names as strings
+func TestProtoValidator_EnumValidation_ValidValues(t *testing.T) {
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
+
+	tests := []struct {
+		name   string
+		filter string
+	}{
+		// Valid enum values (string representation)
+		{"enum with ACTIVE value", `task_status = "TASK_STATUS_ACTIVE"`},
+		{"enum with INACTIVE value", `task_status = "TASK_STATUS_INACTIVE"`},
+		{"enum with COMPLETED value", `task_status = "TASK_STATUS_COMPLETED"`},
+		{"enum with UNSPECIFIED value", `task_status = "TASK_STATUS_UNSPECIFIED"`},
+
+		// Valid enum values (prefix-stripped - should match with prefix added)
+		{"enum with ACTIVE value no prefix", `task_status = "ACTIVE"`},
+		{"enum with INACTIVE value no prefix", `task_status = "INACTIVE"`},
+		{"enum with COMPLETED value no prefix", `task_status = "COMPLETED"`},
+		{"enum with UNSPECIFIED value no prefix", `task_status = "UNSPECIFIED"`},
+
+		// Equality and inequality operators (only ones allowed for enums)
+		{"enum with equality operator", `task_status = "TASK_STATUS_ACTIVE"`},
+		{"enum with inequality operator", `task_status != "TASK_STATUS_INACTIVE"`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+			if len(errs) > 0 {
+				t.Errorf("Expected no errors for %s, got: %v", tt.name, errs)
+			}
+		})
+	}
+}
+
+// TestProtoValidator_EnumValidation_InvalidValues tests that enum fields
+// reject invalid enum values
+func TestProtoValidator_EnumValidation_InvalidValues(t *testing.T) {
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
+
+	tests := []struct {
+		name   string
+		filter string
+	}{
+		// Invalid enum values (not in enum definition)
+		{"enum with invalid value", `task_status = "INVALID_VALUE"`},
+		{"enum with wrong case", `task_status = "status_active"`},
+		{"enum with numeric value", `task_status = 1`},
+		{"enum with boolean", `task_status = true`},
+
+		// Invalid operators for enum (only = and != allowed)
+		{"enum with less than", `status < "TASK_STATUS_ACTIVE"`},
+		{"enum with greater than", `status > "TASK_STATUS_ACTIVE"`},
+		{"enum with less or equal", `status <= "TASK_STATUS_COMPLETED"`},
+		{"enum with greater or equal", `status >= "TASK_STATUS_COMPLETED"`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+			if len(errs) == 0 {
+				t.Errorf("Expected validation error for %s, got none", tt.name)
+			}
+		})
+	}
+}
+
+// TestProtoValidator_EnumValidation_NonPrefixedEnum_ValidValues tests valid enum values
+// for TaskResult enum which has non-prefixed values (SUCCESS, FAILED, COMPLETED).
+// Per proto3 spec, the prefix pattern is recommended but not required.
+func TestProtoValidator_EnumValidation_NonPrefixedEnum_ValidValues(t *testing.T) {
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
+
+	tests := []struct {
+		name   string
+		filter string
+	}{
+		// Valid non-prefixed enum values
+		{"non-prefixed SUCCESS", `task_result = "SUCCESS"`},
+		{"non-prefixed FAILED", `task_result = "FAILED"`},
+		{"non-prefixed COMPLETED", `task_result = "PENDING"`},
+
+		// TASK_RESULT_UNSPECIFIED is actually prefixed (zero value conventionally has prefix)
+		{"prefixed TASK_RESULT_UNSPECIFIED exists", `task_result = "TASK_RESULT_UNSPECIFIED"`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+			if len(errs) > 0 {
+				t.Errorf("Expected no errors, got: %v", errs)
+			}
+		})
+	}
+}
+
+// TestProtoValidator_EnumValidation_NonPrefixedEnum_InvalidValues tests invalid enum values
+// for TaskResult enum to ensure proper validation and that we don't incorrectly add prefixes.
+func TestProtoValidator_EnumValidation_NonPrefixedEnum_InvalidValues(t *testing.T) {
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
+
+	tests := []struct {
+		name   string
+		filter string
+	}{
+		// Case sensitivity still enforced (per AIP-160: case-sensitive)
+		{"lowercase rejected", `task_result = "success"`},
+		{"mixed case rejected", `task_result = "Success"`},
+		{"wrong case failed", `task_result = "failed"`},
+
+		// Prefixed versions don't exist for non-zero values (verify we don't add prefixes where they don't exist)
+		{"prefixed TASK_RESULT_SUCCESS doesn't exist", `task_result = "TASK_RESULT_SUCCESS"`},
+		{"prefixed TASK_RESULT_FAILED doesn't exist", `task_result = "TASK_RESULT_FAILED"`},
+		{"prefixed TASK_RESULT_PENDING doesn't exist", `task_result = "TASK_RESULT_COMPLETED"`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+			if len(errs) == 0 {
+				t.Errorf("Expected validation error, got none")
+			}
+		})
+	}
+}
+
+// === Nested Traversal Tests (TDD Cycle 5) ===
+
+// TestProtoValidator_NestedTraversal_Valid tests valid nested field access.
+// Tests one-level, two-level, and three-level deep nesting with all scalar types.
+func TestProtoValidator_NestedTraversal_Valid(t *testing.T) {
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
+
+	tests := []struct {
+		name   string
+		filter string
+	}{
+		// One level deep
+		{"one level string", `nested.name = "test"`},
+		{"one level bool", `nested.enabled = true`},
+
+		// Two levels deep - all scalar types at leaf
+		{"two level string", `nested.leaf.text = "value"`},
+		{"two level bool", `nested.leaf.flag = false`},
+		{"two level int32", `nested.leaf.count = 42`},
+		{"two level int64", `nested.leaf.bignum = 1000`},
+		{"two level uint32", `nested.leaf.ucount = 99`},
+		{"two level float", `nested.leaf.score = 3.14`},
+		{"two level double", `nested.leaf.rating = 4.5`},
+		{"two level enum", `nested.leaf.status = "TASK_STATUS_ACTIVE"`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+			if len(errs) > 0 {
+				t.Errorf("Expected no errors for valid nested field '%s', got: %v", tt.filter, errs)
+			}
+		})
+	}
+}
+
+// TestProtoValidator_NestedTraversal_InvalidField tests traversal with non-existent nested fields.
+func TestProtoValidator_NestedTraversal_InvalidField(t *testing.T) {
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
+
+	tests := []struct {
+		name   string
+		filter string
+	}{
+		{"nested field doesn't exist", `nested.invalid = "test"`},
+		{"top level doesn't exist", `nonexistent.field = "test"`},
+		{"two level deep invalid", `nested.leaf.invalid = "test"`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+			if len(errs) == 0 {
+				t.Errorf("Expected validation error for '%s', got none", tt.filter)
+			}
+		})
+	}
+}
+
+// TestProtoValidator_NestedTraversal_NonMessageType tests that traversal is rejected for scalar fields.
+// In protobuf, only message-type fields have nested structure. Scalar types (string, bool, int, etc.)
+// are primitive values and cannot be traversed with dot notation.
+//
+// Examples:
+//   - VALID:   nested.leaf.text         (nested and leaf are Messages)
+//   - INVALID: name.something         (name is a string - strings have no sub-fields)
+//   - INVALID: nested.enabled.nope    (enabled is a bool - cannot traverse further)
+//
+// This test ensures the validator catches these semantic errors and provides clear error messages
+// explaining that you cannot traverse into non-message fields.
+func TestProtoValidator_NestedTraversal_NonMessageType(t *testing.T) {
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
+
+	tests := []struct {
+		name   string
+		filter string
+	}{
+		{"traverse into string", `name.invalid = "test"`},
+		{"traverse into bool", `nested.enabled.nope = "test"`},
+		{"traverse into int at leaf", `nested.leaf.count.nope = 5`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+			if len(errs) == 0 {
+				t.Errorf("Expected validation error for non-message traversal '%s', got none", tt.filter)
+			}
+		})
+	}
+}
+
+// TestProtoValidator_NestedTraversal_TypeValidation tests that type checking works on nested fields.
+// The validator should enforce type compatibility for nested field comparisons, just like
+// it does for top-level fields.
+//
+// Examples:
+//   - nested.leaf.text (string) can be compared with string literals
+//   - nested.leaf.flag (bool) can be compared with boolean literals
+//   - nested.leaf.count (int32) can be compared with integer literals
+//   - Type mismatches should be rejected (e.g., comparing string field with number)
+func TestProtoValidator_NestedTraversal_TypeValidation(t *testing.T) {
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
+
+	tests := []struct {
+		name   string
+		filter string
+		valid  bool
+	}{
+		// Valid type matches
+		{"string with string", `nested.leaf.text = "value"`, true},
+		{"bool with bool", `nested.leaf.flag = true`, true},
+		{"int with int", `nested.leaf.count = 42`, true},
+		{"float with float", `nested.leaf.score = 3.14`, true},
+
+		// Invalid type mismatches
+		{"string with number", `nested.leaf.text = 123`, false},
+		{"bool with string", `nested.leaf.flag = "true"`, false},
+		{"int with string", `nested.leaf.count = "high"`, false},
+		{"float with bool", `nested.leaf.score = true`, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+			if tt.valid && len(errs) > 0 {
+				t.Errorf("Expected no errors for valid type match '%s', got: %v", tt.filter, errs)
+			}
+			if !tt.valid && len(errs) == 0 {
+				t.Errorf("Expected type mismatch error for '%s', got none", tt.filter)
+			}
+		})
+	}
+}
+
+// =============================================================================
+// TDD Cycle 6: HAS Operator and Repeated Field Validation
+// =============================================================================
+
+// Phase 6A RED: TestProtoValidator_RepeatedField_RejectComparisons
+//
+// AIP-160 states: "The . operator must not be used to traverse through a repeated field"
+// and the HAS operator (:) should be used instead for repeated fields.
+//
+// This test verifies that ALL comparison operators (=, !=, <, >, <=, >=) are rejected
+// when used on repeated fields. Users should get a clear error directing them to use
+// the HAS operator (:) instead.
+//
+// Expected: These tests should FAIL (RED phase) because validateComparison() doesn't
+// yet check for repeated fields using fieldDesc.IsList().
+func TestProtoValidator_RepeatedField_RejectComparisons(t *testing.T) {
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
+
+	tests := []struct {
+		name          string
+		filter        string
+		expectedError string // Partial error message to check for
+	}{
+		// Test ALL 6 comparison operators on repeated field
+		{"repeated field =", `tags = "urgent"`, "repeated field"},
+		{"repeated field !=", `tags != "urgent"`, "repeated field"},
+		{"repeated field <", `tags < "urgent"`, "repeated field"},
+		{"repeated field >", `tags > "urgent"`, "repeated field"},
+		{"repeated field <=", `tags <= "urgent"`, "repeated field"},
+		{"repeated field >=", `tags >= "urgent"`, "repeated field"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+			// RED PHASE: These should FAIL because we haven't implemented the check yet
+			if len(errs) == 0 {
+				t.Errorf("Expected error for comparison on repeated field '%s', got none", tt.filter)
+			} else {
+				// Verify error message mentions "repeated field"
+				found := false
+				for _, err := range errs {
+					if strings.Contains(err.Error(), tt.expectedError) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected error mentioning '%s' for '%s', got: %v", tt.expectedError, tt.filter, errs)
+				}
+			}
+		})
+	}
+}
+
+// Phase 6B RED: TestProtoValidator_RepeatedField_BasicHas
+//
+// AIP-160 requires the HAS operator (:) for repeated fields:
+// - r:"value" - True if repeated field contains "value"
+// - r:42 - True if repeated field contains 42
+// - r:* - True if repeated field is present (non-empty)
+//
+// This test validates basic HAS operator functionality on repeated scalar fields.
+//
+// Expected: These tests should FAIL (RED phase) because validateHas() doesn't exist yet
+// and validateNode() doesn't have a case for ast.HasExpression.
+func TestProtoValidator_RepeatedField_BasicHas(t *testing.T) {
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
+
+	tests := []struct {
+		name       string
+		filter     string
+		valid      bool
+		errorCount int
+	}{
+		// Basic HAS on repeated string
+		{"repeated string has", `tags:"urgent"`, true, 0},
+		{"repeated string has no match", `tags:"nonexistent"`, true, 0}, // Valid syntax, runtime would return no results
+
+		// Basic HAS on repeated int32
+		{"repeated int has", `scores:100`, true, 0},
+		{"repeated int has no match", `scores:999`, true, 0}, // Valid syntax
+
+		// Star operator - presence check
+		// TODO: Parser doesn't support * as identifier yet - uncomment when fixed
+		// {"repeated string star", `tags:*`, true, 0},
+		// {"repeated int star", `scores:*`, true, 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+
+			// RED PHASE: These should FAIL because validateHas() doesn't exist
+			if tt.valid && len(errs) != tt.errorCount {
+				t.Errorf("Expected %d errors for valid HAS '%s', got %d: %v",
+					tt.errorCount, tt.filter, len(errs), errs)
+			}
+			if !tt.valid && len(errs) == 0 {
+				t.Errorf("Expected validation error for invalid HAS '%s', got none", tt.filter)
+			}
+		})
+	}
+}
+
+// Phase 6C RED: TestProtoValidator_RepeatedEnum_Has
+//
+// AIP-160 HAS operator should work with repeated enum fields, supporting both:
+// - Prefixed values: statuses:"TASK_STATUS_ACTIVE"
+// - Stripped values: statuses:"ACTIVE" (with prefix auto-added)
+//
+// This reuses the existing enum validation logic with prefix stripping.
+//
+// Expected: These tests should FAIL (RED phase) because validateHas() doesn't
+// yet handle EnumKind elements.
+func TestProtoValidator_RepeatedEnum_Has(t *testing.T) {
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
+
+	tests := []struct {
+		name       string
+		filter     string
+		valid      bool
+		errorCount int
+	}{
+		// Prefix-stripped enum values (user-friendly)
+		{"enum stripped ACTIVE", `statuses:"ACTIVE"`, true, 0},
+		{"enum stripped INACTIVE", `statuses:"INACTIVE"`, true, 0},
+		{"enum stripped COMPLETED", `statuses:"COMPLETED"`, true, 0},
+
+		// Full prefixed enum values (also valid)
+		{"enum full TASK_STATUS_ACTIVE", `statuses:"TASK_STATUS_ACTIVE"`, true, 0},
+		{"enum full TASK_STATUS_INACTIVE", `statuses:"TASK_STATUS_INACTIVE"`, true, 0},
+
+		// Invalid enum value (should fail)
+		{"enum invalid", `statuses:"INVALID_STATUS"`, false, 1},
+		{"enum nonexistent", `statuses:"DOES_NOT_EXIST"`, false, 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+
+			// RED PHASE: These should FAIL because enum validation not in validateHas yet
+			if tt.valid && len(errs) != tt.errorCount {
+				t.Errorf("Expected %d errors for valid enum HAS '%s', got %d: %v",
+					tt.errorCount, tt.filter, len(errs), errs)
+			}
+			if !tt.valid && len(errs) == 0 {
+				t.Errorf("Expected validation error for invalid enum HAS '%s', got none", tt.filter)
+			}
+		})
+	}
+}
+
+// Phase 6D RED: TestProtoValidator_RepeatedMessage_NestedHas
+//
+// AIP-160 supports nested HAS on repeated messages:
+// - emails.address:"test" - True if emails contains element where address="test"
+// - emails.metadata.source:"web" - Multi-level traversal through repeated message
+//
+// This is the most complex HAS scenario: traversing INTO a repeated message field
+// to check if any element has a matching nested field value.
+//
+// Expected: These tests should FAIL (RED phase) because validateHas() doesn't
+// handle TraversalExpression on the collection side yet.
+func TestProtoValidator_RepeatedMessage_NestedHas(t *testing.T) {
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
+
+	tests := []struct {
+		name       string
+		filter     string
+		valid      bool
+		errorCount int
+	}{
+		// Nested HAS on repeated message (2-level: emails.address)
+		{"repeated message 2-level", `emails.address:"test@example.com"`, true, 0},
+		{"repeated message 2-level string", `emails.address:"user@domain.com"`, true, 0},
+
+		// Nested HAS on repeated message (3-level: emails.metadata.source)
+		{"repeated message 3-level", `emails.metadata.source:"web"`, true, 0},
+		{"repeated message 3-level int", `emails.metadata.priority:5`, true, 0},
+
+		// Traversal to nested repeated field (3-level)
+		{"3-level to repeated", `nested.leaf.leaf_tags:"critical"`, true, 0},
+		{"3-level to repeated urgent", `nested.leaf.leaf_tags:"urgent"`, true, 0},
+
+		// Star operator on repeated message (TODO: parser limitation)
+		// {"repeated message star", `emails:*`, true, 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+
+			// RED PHASE: These should FAIL because nested traversal not supported yet
+			if tt.valid && len(errs) != tt.errorCount {
+				t.Errorf("Expected %d errors for nested HAS '%s', got %d: %v",
+					tt.errorCount, tt.filter, len(errs), errs)
+			}
+			if !tt.valid && len(errs) == 0 {
+				t.Errorf("Expected validation error for invalid nested HAS '%s', got none", tt.filter)
+			}
+		})
+	}
+}
+
+// TestProtoValidator_SingularMessage_Has tests HAS operator with singular message fields (Phase 6E).
+
+// TestProtoValidator_SingularMessage_Has tests HAS operator with singular message fields (Phase 6E).
+// Per AIP-160: "m:* True if message field m is present (non-default value)".
+func TestProtoValidator_SingularMessage_Has(t *testing.T) {
+	tests := []struct {
+		name    string
+		filter  string
+		wantErr bool
+		errCnt  int
+	}{
+		// E1: Singular message presence check with star operator
+		// Note: Parser limitation - star operator not yet supported, will test when available
+		// {"message field present", `email:*`, false, 0},
+
+		// E2: HAS operator with nested field in singular message
+		{"nested field has", `email.address:"test@example.com"`, false, 0},
+		{"nested metadata has", `email.metadata.source:"web"`, false, 0},
+
+		// E3: HAS vs comparison - both should work for scalars in messages
+		{"comparison on message field", `email.address = "test"`, false, 0}, // Comparison ✅
+		{"has on message field", `email.address:"test"`, false, 0},          // HAS ✅
+
+		// E4: Cannot use star operator on scalar fields
+		// Note: Parser limitation - star operator not yet supported, will test when available
+		// {"scalar star invalid", `name:*`, true, 1},  // ❌ name is string, not message
+
+		// E5: Invalid enum values in singular message nested field
+		{"invalid enum in message", `email.metadata.priority:"INVALID"`, true, 1},
+	}
+
+	msgDesc := (&testdata.TestProtoData{}).ProtoReflect().Descriptor()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+			if (len(errs) > 0) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", errs, tt.wantErr)
+			}
+			if len(errs) != tt.errCnt {
+				t.Errorf("Validate() error count = %d, want %d. Errors: %v", len(errs), tt.errCnt, errs)
+			}
+		})
+	}
+}
+
+// TestProtoValidator_Has_Integration tests HAS operator with logical operators (Phase 6F).
+// Per AIP-160: HAS should work seamlessly with AND, OR, NOT in complex expressions.
+func TestProtoValidator_Has_Integration(t *testing.T) {
+	tests := []struct {
+		name    string
+		filter  string
+		wantErr bool
+		errCnt  int
+	}{
+		// F1: Multiple HAS with AND
+		{"has AND has same field", `tags:"urgent" AND tags:"important"`, false, 0},
+		{"has AND has different fields", `tags:"urgent" AND scores:100`, false, 0},
+		{"nested has AND nested has", `emails.address:"test" AND emails.metadata.source:"web"`, false, 0},
+
+		// F2: Multiple HAS with OR
+		{"has OR has same field", `tags:"urgent" OR tags:"important"`, false, 0},
+		{"has OR has different fields", `tags:"urgent" OR scores:100`, false, 0},
+		{"repeated enum OR", `statuses:"ACTIVE" OR statuses:"COMPLETED"`, false, 0},
+
+		// F3: NOT with HAS
+		{"NOT has", `NOT tags:"urgent"`, false, 0},
+		{"NOT nested has", `NOT emails.address:"test@example.com"`, false, 0},
+
+		// F4: HAS with comparisons
+		{"has AND comparison", `tags:"urgent" AND age > 25`, false, 0},
+		{"comparison AND has", `active = true AND tags:"important"`, false, 0},
+		{"has OR comparison", `tags:"urgent" OR age < 18`, false, 0},
+
+		// F5: Complex nested combinations
+		{"parentheses with has", `(tags:"urgent" OR tags:"important") AND active = true`, false, 0},
+		{"deep nesting with has", `(tags:"urgent" AND scores:100) OR (statuses:"COMPLETED" AND age > 50)`, false, 0},
+		{"NOT with AND", `NOT (tags:"urgent" AND scores:100)`, false, 0},
+
+		// F6: Invalid combinations - type errors should still be caught
+		{"has type mismatch", `tags:123`, true, 1}, // tags is string[], not int[]
+		{"has invalid enum", `statuses:"INVALID_STATUS"`, true, 1},
+		{"has AND invalid type", `tags:"urgent" AND scores:"not_a_number"`, true, 1},
+
+		// F7: Singular + repeated HAS together
+		{"singular and repeated has", `email.address:"test" AND emails.address:"example"`, false, 0},
+		{"mixed has with logic", `email.metadata.priority:1 OR tags:"urgent"`, false, 0}, // priority is int32
+	}
+
+	msgDesc := (&testdata.TestProtoData{}).ProtoReflect().Descriptor()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+			if (len(errs) > 0) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", errs, tt.wantErr)
+			}
+			if len(errs) != tt.errCnt {
+				t.Errorf("Validate() error count = %d, want %d. Errors: %v", len(errs), tt.errCnt, errs)
+			}
+		})
+	}
+}

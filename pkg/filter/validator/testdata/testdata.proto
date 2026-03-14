@@ -1,0 +1,116 @@
+syntax = "proto3";
+
+package testdata;
+
+option go_package = "github.com/zshainsky/aip160/pkg/filter/validator/testdata";
+
+// TaskStatus demonstrates enum with multi-word prefix (TASK_STATUS_*).
+// Tests prefix-stripping with compound prefix ("ACTIVE" matches "TASK_STATUS_ACTIVE").
+enum TaskStatus {
+  TASK_STATUS_UNSPECIFIED = 0;
+  TASK_STATUS_ACTIVE = 1;
+  TASK_STATUS_INACTIVE = 2;
+  TASK_STATUS_COMPLETED = 3;
+}
+
+// TaskResult demonstrates enum without prefix (non-standard but valid).
+// Tests that we don't add prefixes where they don't exist.
+enum TaskResult {
+  TASK_RESULT_UNSPECIFIED = 0;  // Zero value conventionally has prefix
+  SUCCESS = 1;
+  FAILED = 2;
+  PENDING = 3;
+}
+
+// LeafData contains all scalar types at the deepest nesting level.
+// Allows testing traversal validation for all field types at depth.
+message LeafData {
+  // String and bytes
+  string text = 1;
+  bytes data = 2;
+  
+  // Boolean
+  bool flag = 3;
+  
+  // Enums
+  TaskStatus status = 4;
+  TaskResult result = 5;
+  
+  // Signed integers
+  int32 count = 6;
+  int64 bignum = 7;
+  sint32 signed_count = 8;
+  sint64 signed_bignum = 9;
+  
+  // Unsigned integers
+  uint32 ucount = 10;
+  uint64 ubignum = 11;
+  
+  // Fixed-width integers
+  fixed32 fixed_count = 12;
+  fixed64 fixed_bignum = 13;
+  sfixed32 sfixed_count = 14;
+  sfixed64 sfixed_bignum = 15;
+  
+  // Floating point
+  float score = 16;
+  double rating = 17;
+  
+  // Repeated field for deep nesting HAS tests (Phase 6D)
+  repeated string leaf_tags = 51;
+}
+
+// Email represents an email with metadata for nested HAS testing.
+message Email {
+  string address = 1;
+  EmailMetadata metadata = 2;
+}
+
+// EmailMetadata represents metadata about an email.
+message EmailMetadata {
+  string source = 1;
+  int32 priority = 2;
+}
+
+// NestedData represents middle-level nesting with a leaf message.
+message NestedData {
+  string name = 1;
+  bool enabled = 2;
+  LeafData leaf = 3;
+}
+
+// TestProtoData is the root message for comprehensive ProtoValidator testing.
+// Supports 3-level deep traversal: TestProtoData.nested.leaf.<all_scalar_types>
+message TestProtoData {
+  // Top-level scalar fields for basic validation tests
+  string name = 1;
+  int32 age = 2;
+  bool active = 3;
+  TaskStatus task_status = 4;
+  TaskResult task_result = 5;
+  
+  // Additional scalar types at top level
+  int64 user_id = 6;
+  uint32 points = 7;
+  uint64 balance = 8;
+  sint32 temperature = 9;
+  sint64 offset = 10;
+  fixed32 fixed_id = 11;
+  fixed64 fixed_timestamp = 12;
+  sfixed32 sfixed_coord_x = 13;
+  sfixed64 sfixed_coord_y = 14;
+  float score = 15;
+  double rating = 16;
+  bytes data = 17;
+  
+  // Nested structure for traversal testing (1 → 2 → 3 levels deep)
+  // All scalar types also available at leaf for deep traversal validation
+  NestedData nested = 20;
+  
+  // Repeated fields for HAS operator validation (TDD Cycle 6)
+  repeated string tags = 21;
+  repeated int32 scores = 22;
+  repeated TaskStatus statuses = 23;  // Plural form for enum testing
+  Email email = 24;                   // Singular form for message presence HAS testing
+  repeated Email emails = 25;         // Plural form for nested message HAS testing
+}

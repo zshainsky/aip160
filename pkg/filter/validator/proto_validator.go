@@ -463,9 +463,7 @@ func (pv *ProtoValidator) validateTraversal(expr *ast.TraversalExpression, error
 	}
 
 	// Ensure the left field is a message type (can be traversed)
-	if leftField.Kind() != protoreflect.MessageKind {
-		pv.addError(errors, "cannot traverse into non-message field '%s' (type: %s)",
-			pv.getFieldPath(expr.Left), leftField.Kind())
+	if !pv.requireMessageKind(leftField, expr.Left, errors) {
 		return
 	}
 
@@ -497,9 +495,7 @@ func (pv *ProtoValidator) resolveFieldDescriptor(node ast.Node, msgDesc protoref
 		}
 
 		// Ensure left side is a message
-		if leftField.Kind() != protoreflect.MessageKind {
-			pv.addError(errors, "cannot traverse into non-message field '%s' (type: %s)",
-				pv.getFieldPath(n.Left), leftField.Kind())
+		if !pv.requireMessageKind(leftField, n.Left, errors) {
 			return nil, nil
 		}
 
@@ -519,6 +515,18 @@ func (pv *ProtoValidator) validateNodeWithDescriptor(node ast.Node, msgDesc prot
 	// Simply delegate to resolveFieldDescriptor which already handles
 	// both Identifier and TraversalExpression cases with proper error reporting
 	pv.resolveFieldDescriptor(node, msgDesc, errors)
+}
+
+// requireMessageKind validates that a field is a message type (can be traversed).
+// Returns true if valid, false if not (with error added).
+// This helper eliminates duplicate "cannot traverse" error checking.
+func (pv *ProtoValidator) requireMessageKind(fieldDesc protoreflect.FieldDescriptor, node ast.Node, errors *[]error) bool {
+	if fieldDesc.Kind() != protoreflect.MessageKind {
+		pv.addError(errors, "cannot traverse into non-message field '%s' (type: %s)",
+			pv.getFieldPath(node), fieldDesc.Kind())
+		return false
+	}
+	return true
 }
 
 // getFieldPath returns the full field path as a string (e.g., "email.address").

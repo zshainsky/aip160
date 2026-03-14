@@ -21,19 +21,73 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Metadata represents email metadata for three-level nesting tests
+type Metadata struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Source        string                 `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
+	Priority      int32                  `protobuf:"varint,2,opt,name=priority,proto3" json:"priority,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Metadata) Reset() {
+	*x = Metadata{}
+	mi := &file_pkg_filter_validator_testdata_contact_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Metadata) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Metadata) ProtoMessage() {}
+
+func (x *Metadata) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_filter_validator_testdata_contact_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Metadata.ProtoReflect.Descriptor instead.
+func (*Metadata) Descriptor() ([]byte, []int) {
+	return file_pkg_filter_validator_testdata_contact_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *Metadata) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *Metadata) GetPriority() int32 {
+	if x != nil {
+		return x.Priority
+	}
+	return 0
+}
+
 // Email represents an email address for nested field testing
 type Email struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Address       string                 `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
 	Verified      bool                   `protobuf:"varint,2,opt,name=verified,proto3" json:"verified,omitempty"`
 	Domain        string                 `protobuf:"bytes,3,opt,name=domain,proto3" json:"domain,omitempty"`
+	Metadata      *Metadata              `protobuf:"bytes,4,opt,name=metadata,proto3" json:"metadata,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Email) Reset() {
 	*x = Email{}
-	mi := &file_pkg_filter_validator_testdata_contact_proto_msgTypes[0]
+	mi := &file_pkg_filter_validator_testdata_contact_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45,7 +99,7 @@ func (x *Email) String() string {
 func (*Email) ProtoMessage() {}
 
 func (x *Email) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_filter_validator_testdata_contact_proto_msgTypes[0]
+	mi := &file_pkg_filter_validator_testdata_contact_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -58,7 +112,7 @@ func (x *Email) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Email.ProtoReflect.Descriptor instead.
 func (*Email) Descriptor() ([]byte, []int) {
-	return file_pkg_filter_validator_testdata_contact_proto_rawDescGZIP(), []int{0}
+	return file_pkg_filter_validator_testdata_contact_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Email) GetAddress() string {
@@ -82,6 +136,13 @@ func (x *Email) GetDomain() string {
 	return ""
 }
 
+func (x *Email) GetMetadata() *Metadata {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
 // Address represents a physical address for deep nesting tests
 type Address struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -94,7 +155,7 @@ type Address struct {
 
 func (x *Address) Reset() {
 	*x = Address{}
-	mi := &file_pkg_filter_validator_testdata_contact_proto_msgTypes[1]
+	mi := &file_pkg_filter_validator_testdata_contact_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -106,7 +167,7 @@ func (x *Address) String() string {
 func (*Address) ProtoMessage() {}
 
 func (x *Address) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_filter_validator_testdata_contact_proto_msgTypes[1]
+	mi := &file_pkg_filter_validator_testdata_contact_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -119,7 +180,7 @@ func (x *Address) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Address.ProtoReflect.Descriptor instead.
 func (*Address) Descriptor() ([]byte, []int) {
-	return file_pkg_filter_validator_testdata_contact_proto_rawDescGZIP(), []int{1}
+	return file_pkg_filter_validator_testdata_contact_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Address) GetStreet() string {
@@ -154,7 +215,7 @@ type Profile struct {
 
 func (x *Profile) Reset() {
 	*x = Profile{}
-	mi := &file_pkg_filter_validator_testdata_contact_proto_msgTypes[2]
+	mi := &file_pkg_filter_validator_testdata_contact_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -166,7 +227,7 @@ func (x *Profile) String() string {
 func (*Profile) ProtoMessage() {}
 
 func (x *Profile) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_filter_validator_testdata_contact_proto_msgTypes[2]
+	mi := &file_pkg_filter_validator_testdata_contact_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -179,7 +240,7 @@ func (x *Profile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Profile.ProtoReflect.Descriptor instead.
 func (*Profile) Descriptor() ([]byte, []int) {
-	return file_pkg_filter_validator_testdata_contact_proto_rawDescGZIP(), []int{2}
+	return file_pkg_filter_validator_testdata_contact_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Profile) GetTheme() string {
@@ -210,7 +271,7 @@ type Contact struct {
 
 func (x *Contact) Reset() {
 	*x = Contact{}
-	mi := &file_pkg_filter_validator_testdata_contact_proto_msgTypes[3]
+	mi := &file_pkg_filter_validator_testdata_contact_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -222,7 +283,7 @@ func (x *Contact) String() string {
 func (*Contact) ProtoMessage() {}
 
 func (x *Contact) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_filter_validator_testdata_contact_proto_msgTypes[3]
+	mi := &file_pkg_filter_validator_testdata_contact_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -235,7 +296,7 @@ func (x *Contact) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Contact.ProtoReflect.Descriptor instead.
 func (*Contact) Descriptor() ([]byte, []int) {
-	return file_pkg_filter_validator_testdata_contact_proto_rawDescGZIP(), []int{3}
+	return file_pkg_filter_validator_testdata_contact_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Contact) GetName() string {
@@ -277,11 +338,15 @@ var File_pkg_filter_validator_testdata_contact_proto protoreflect.FileDescriptor
 
 const file_pkg_filter_validator_testdata_contact_proto_rawDesc = "" +
 	"\n" +
-	"+pkg/filter/validator/testdata/contact.proto\x12\btestdata\"U\n" +
+	"+pkg/filter/validator/testdata/contact.proto\x12\btestdata\">\n" +
+	"\bMetadata\x12\x16\n" +
+	"\x06source\x18\x01 \x01(\tR\x06source\x12\x1a\n" +
+	"\bpriority\x18\x02 \x01(\x05R\bpriority\"\x85\x01\n" +
 	"\x05Email\x12\x18\n" +
 	"\aaddress\x18\x01 \x01(\tR\aaddress\x12\x1a\n" +
 	"\bverified\x18\x02 \x01(\bR\bverified\x12\x16\n" +
-	"\x06domain\x18\x03 \x01(\tR\x06domain\"O\n" +
+	"\x06domain\x18\x03 \x01(\tR\x06domain\x12.\n" +
+	"\bmetadata\x18\x04 \x01(\v2\x12.testdata.MetadataR\bmetadata\"O\n" +
 	"\aAddress\x12\x16\n" +
 	"\x06street\x18\x01 \x01(\tR\x06street\x12\x12\n" +
 	"\x04city\x18\x02 \x01(\tR\x04city\x12\x18\n" +
@@ -308,22 +373,24 @@ func file_pkg_filter_validator_testdata_contact_proto_rawDescGZIP() []byte {
 	return file_pkg_filter_validator_testdata_contact_proto_rawDescData
 }
 
-var file_pkg_filter_validator_testdata_contact_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_pkg_filter_validator_testdata_contact_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_pkg_filter_validator_testdata_contact_proto_goTypes = []any{
-	(*Email)(nil),   // 0: testdata.Email
-	(*Address)(nil), // 1: testdata.Address
-	(*Profile)(nil), // 2: testdata.Profile
-	(*Contact)(nil), // 3: testdata.Contact
+	(*Metadata)(nil), // 0: testdata.Metadata
+	(*Email)(nil),    // 1: testdata.Email
+	(*Address)(nil),  // 2: testdata.Address
+	(*Profile)(nil),  // 3: testdata.Profile
+	(*Contact)(nil),  // 4: testdata.Contact
 }
 var file_pkg_filter_validator_testdata_contact_proto_depIdxs = []int32{
-	0, // 0: testdata.Contact.email:type_name -> testdata.Email
-	1, // 1: testdata.Contact.address:type_name -> testdata.Address
-	2, // 2: testdata.Contact.profile:type_name -> testdata.Profile
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	0, // 0: testdata.Email.metadata:type_name -> testdata.Metadata
+	1, // 1: testdata.Contact.email:type_name -> testdata.Email
+	2, // 2: testdata.Contact.address:type_name -> testdata.Address
+	3, // 3: testdata.Contact.profile:type_name -> testdata.Profile
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_pkg_filter_validator_testdata_contact_proto_init() }
@@ -337,7 +404,7 @@ func file_pkg_filter_validator_testdata_contact_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pkg_filter_validator_testdata_contact_proto_rawDesc), len(file_pkg_filter_validator_testdata_contact_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

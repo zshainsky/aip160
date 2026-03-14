@@ -166,10 +166,14 @@ func (pv *ProtoValidator) validateComparison(expr *ast.ComparisonExpression, err
 	// Validate left side (field reference)
 	pv.validateNode(expr.Left, errors)
 
-	// Get field descriptor to check if it's an enum
+	// Get field descriptor for left side (handles both simple and nested fields)
 	var fieldDesc protoreflect.FieldDescriptor
-	if ident, ok := expr.Left.(*ast.Identifier); ok {
-		fieldDesc, _ = pv.findFieldByName(pv.descriptor, ident.Value)
+	switch left := expr.Left.(type) {
+	case *ast.Identifier:
+		fieldDesc, _ = pv.findFieldByName(pv.descriptor, left.Value)
+	case *ast.TraversalExpression:
+		// For nested fields, resolve the full path to get the final field descriptor
+		fieldDesc, _ = pv.resolveFieldDescriptor(left, pv.descriptor, &[]error{})
 	}
 
 	// Special handling for enum fields
@@ -182,7 +186,7 @@ func (pv *ProtoValidator) validateComparison(expr *ast.ComparisonExpression, err
 	if fieldDesc != nil && fieldDesc.Kind() == protoreflect.BoolKind {
 		if !pv.isValidOperatorForKind(expr.Operator, protoreflect.BoolKind) {
 			pv.addError(errors, "boolean field '%s' does not support operator '%s' (only = and != allowed)",
-				fieldDesc.Name(), expr.Operator)
+				pv.getFieldPath(expr.Left), expr.Operator)
 			return
 		}
 	}
@@ -316,7 +320,7 @@ func (pv *ProtoValidator) isValidOperatorForKind(operator string, kind protorefl
 }
 
 // getExpressionKind determines the proto kind of an expression.
-// Returns the field's kind for identifiers, or inferred kind for literals.
+// Returns the field's kind for identifiers/traversals, or inferred kind for literals.
 //
 // For numeric literals, distinguishes between integer and float based on
 // whether the value has a fractional part (e.g., 23 vs 23.55).
@@ -325,6 +329,12 @@ func (pv *ProtoValidator) getExpressionKind(node ast.Node) (protoreflect.Kind, b
 	case *ast.Identifier:
 		fieldDesc, ok := pv.findFieldByName(pv.descriptor, n.Value)
 		if ok {
+			return fieldDesc.Kind(), true
+		}
+	case *ast.TraversalExpression:
+		// For nested fields, resolve the full path to get the final field's kind
+		fieldDesc, _ := pv.resolveFieldDescriptor(n, pv.descriptor, &[]error{})
+		if fieldDesc != nil {
 			return fieldDesc.Kind(), true
 		}
 	case *ast.StringLiteral:

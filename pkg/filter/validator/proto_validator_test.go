@@ -455,7 +455,7 @@ func TestProtoValidator_EnumValidation_NonPrefixedEnum_InvalidValues(t *testing.
 // === Nested Traversal Tests (TDD Cycle 5) ===
 
 // TestProtoValidator_NestedTraversal_Valid tests valid nested field access.
-// 🔴 RED: Should FAIL initially - validateTraversal is not implemented
+// Tests one-level and three-level deep nesting.
 func TestProtoValidator_NestedTraversal_Valid(t *testing.T) {
 	contact := &testdata.Contact{}
 	msgDesc := contact.ProtoReflect().Descriptor()
@@ -464,10 +464,10 @@ func TestProtoValidator_NestedTraversal_Valid(t *testing.T) {
 		name   string
 		filter string
 	}{
-		{"one level", `email.address = "test@example.com"`},
+		{"one level string", `email.address = "test@example.com"`},
 		{"one level bool", `email.verified = true`},
-		{"nested message", `address.city = "Seattle"`},
-		{"different nested", `profile.theme = "dark"`},
+		{"three level deep", `email.metadata.source = "web"`},
+		{"three level deep int", `email.metadata.priority = 5`},
 	}
 
 	for _, tt := range tests {
@@ -481,7 +481,6 @@ func TestProtoValidator_NestedTraversal_Valid(t *testing.T) {
 }
 
 // TestProtoValidator_NestedTraversal_InvalidField tests traversal with non-existent nested fields.
-// 🔴 RED: Should FAIL initially
 func TestProtoValidator_NestedTraversal_InvalidField(t *testing.T) {
 	contact := &testdata.Contact{}
 	msgDesc := contact.ProtoReflect().Descriptor()
@@ -492,7 +491,7 @@ func TestProtoValidator_NestedTraversal_InvalidField(t *testing.T) {
 	}{
 		{"nested field doesn't exist", `email.invalid = "test"`},
 		{"top level doesn't exist", `nonexistent.field = "test"`},
-		{"deep nesting invalid", `address.zipcode = "98101"`},
+		{"three level deep invalid", `email.metadata.invalid = "test"`},
 	}
 
 	for _, tt := range tests {
@@ -505,8 +504,17 @@ func TestProtoValidator_NestedTraversal_InvalidField(t *testing.T) {
 	}
 }
 
-// TestProtoValidator_NestedTraversal_NonMessageType tests traversal into non-message fields.
-// 🔴 RED: Should FAIL initially - can't traverse into strings, ints, etc.
+// TestProtoValidator_NestedTraversal_NonMessageType tests that traversal is rejected for scalar fields.
+// In protobuf, only message-type fields have nested structure. Scalar types (string, bool, int, etc.)
+// are primitive values and cannot be traversed with dot notation.
+//
+// Examples:
+//   - VALID:   email.address         (email is a Message with an 'address' field)
+//   - INVALID: name.something         (name is a string - strings have no sub-fields)
+//   - INVALID: email.verified.nope    (verified is a bool - cannot traverse further)
+//
+// This test ensures the validator catches these semantic errors and provides clear error messages
+// explaining that you cannot traverse into non-message fields.
 func TestProtoValidator_NestedTraversal_NonMessageType(t *testing.T) {
 	contact := &testdata.Contact{}
 	msgDesc := contact.ProtoReflect().Descriptor()
@@ -524,6 +532,50 @@ func TestProtoValidator_NestedTraversal_NonMessageType(t *testing.T) {
 			errs := validateProtoFilter(t, tt.filter, msgDesc)
 			if len(errs) == 0 {
 				t.Errorf("Expected validation error for non-message traversal '%s', got none", tt.filter)
+			}
+		})
+	}
+}
+
+// TestProtoValidator_NestedTraversal_TypeValidation tests that type checking works on nested fields.
+// The validator should enforce type compatibility for nested field comparisons, just like
+// it does for top-level fields.
+//
+// Examples:
+//   - email.address (string) can be compared with string literals
+//   - email.verified (bool) can be compared with boolean literals
+//   - email.metadata.priority (int32) can be compared with integer literals
+//   - Type mismatches should be rejected (e.g., comparing string field with number)
+func TestProtoValidator_NestedTraversal_TypeValidation(t *testing.T) {
+	contact := &testdata.Contact{}
+	msgDesc := contact.ProtoReflect().Descriptor()
+
+	tests := []struct {
+		name   string
+		filter string
+		valid  bool
+	}{
+		// Valid type matches
+		{"string with string", `email.address = "test@example.com"`, true},
+		{"bool with bool", `email.verified = true`, true},
+		{"int with int", `email.metadata.priority = 5`, true},
+		{"three level string", `email.metadata.source = "web"`, true},
+		
+		// Invalid type mismatches
+		{"string with number", `email.address = 123`, false},
+		{"bool with string", `email.verified = "true"`, false},
+		{"int with string", `email.metadata.priority = "high"`, false},
+		{"string with bool", `email.metadata.source = true`, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+			if tt.valid && len(errs) > 0 {
+				t.Errorf("Expected no errors for valid type match '%s', got: %v", tt.filter, errs)
+			}
+			if !tt.valid && len(errs) == 0 {
+				t.Errorf("Expected type mismatch error for '%s', got none", tt.filter)
 			}
 		})
 	}

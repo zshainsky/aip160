@@ -590,3 +590,60 @@ func TestProtoValidator_NestedTraversal_TypeValidation(t *testing.T) {
 		})
 	}
 }
+
+// =============================================================================
+// TDD Cycle 6: HAS Operator and Repeated Field Validation
+// =============================================================================
+
+// Phase 6A RED: TestProtoValidator_RepeatedField_RejectComparisons
+//
+// AIP-160 states: "The . operator must not be used to traverse through a repeated field"
+// and the HAS operator (:) should be used instead for repeated fields.
+//
+// This test verifies that ALL comparison operators (=, !=, <, >, <=, >=) are rejected
+// when used on repeated fields. Users should get a clear error directing them to use
+// the HAS operator (:) instead.
+//
+// Expected: These tests should FAIL (RED phase) because validateComparison() doesn't
+// yet check for repeated fields using fieldDesc.IsList().
+func TestProtoValidator_RepeatedField_RejectComparisons(t *testing.T) {
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
+
+	tests := []struct {
+		name          string
+		filter        string
+		expectedError string // Partial error message to check for
+	}{
+		// Test ALL 6 comparison operators on repeated field
+		{"repeated field =", `tags = "urgent"`, "repeated field"},
+		{"repeated field !=", `tags != "urgent"`, "repeated field"},
+		{"repeated field <", `tags < "urgent"`, "repeated field"},
+		{"repeated field >", `tags > "urgent"`, "repeated field"},
+		{"repeated field <=", `tags <= "urgent"`, "repeated field"},
+		{"repeated field >=", `tags >= "urgent"`, "repeated field"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+			
+			// RED PHASE: These should FAIL because we haven't implemented the check yet
+			if len(errs) == 0 {
+				t.Errorf("Expected error for comparison on repeated field '%s', got none", tt.filter)
+			} else {
+				// Verify error message mentions "repeated field"
+				found := false
+				for _, err := range errs {
+					if strings.Contains(err.Error(), tt.expectedError) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected error mentioning '%s' for '%s', got: %v", tt.expectedError, tt.filter, errs)
+				}
+			}
+		})
+	}
+}

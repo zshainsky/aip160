@@ -189,7 +189,7 @@ func (pv *ProtoValidator) validateComparison(expr *ast.ComparisonExpression, err
 		return // Field validation already added error
 	}
 
-	// Validate operator is allowed for this field type
+	// Validate operator is allowed for this field type (includes repeated field check)
 	if !pv.validateOperatorForField(expr.Operator, fieldDesc, expr.Left, errors) {
 		return // Operator validation failed, error already added
 	}
@@ -208,6 +208,14 @@ func (pv *ProtoValidator) validateComparison(expr *ast.ComparisonExpression, err
 // validateOperatorForField checks if the operator is valid for the given field type.
 // Returns false if validation fails (with error added), true to continue validation.
 func (pv *ProtoValidator) validateOperatorForField(operator string, fieldDesc protoreflect.FieldDescriptor, fieldNode ast.Node, errors *[]error) bool {
+	// Repeated fields cannot use comparison operators - must use HAS operator (:) instead
+	// Per AIP-160: "The . operator must not be used to traverse through a repeated field"
+	if fieldDesc.IsList() {
+		pv.addError(errors, "cannot use comparison operator on repeated field '%s', use has operator (:) instead", 
+			pv.getFieldPath(fieldNode))
+		return false
+	}
+
 	kind := fieldDesc.Kind()
 	
 	// Boolean and enum fields only support = and != operators

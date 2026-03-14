@@ -424,7 +424,80 @@ func (pv *ProtoValidator) validateUnary(expr *ast.UnaryExpression, errors *[]err
 }
 
 // validateTraversal validates nested field access (e.g., email.address).
-// Implementation will be added in the traversal TDD cycle.
 func (pv *ProtoValidator) validateTraversal(expr *ast.TraversalExpression, errors *[]error) {
-	// TODO: Implement in traversal cycle
+	// Resolve the left side and get its field descriptor
+	leftField, _ := pv.resolveFieldDescriptor(expr.Left, pv.descriptor, errors)
+	if leftField == nil {
+		return // Error already added by resolveFieldDescriptor
+	}
+
+	// Ensure the left field is a message type (can be traversed)
+	if leftField.Kind() != protoreflect.MessageKind {
+		pv.addError(errors, "cannot traverse into non-message field '%s' (type: %s)",
+			pv.getFieldPath(expr.Left), leftField.Kind())
+		return
+	}
+
+	// Get the nested message descriptor
+	nestedDesc := leftField.Message()
+
+	// Recursively validate the right side against the nested descriptor
+	pv.validateNodeWithDescriptor(expr.Right, nestedDesc, errors)
+}
+
+// resolveFieldDescriptor resolves a field descriptor from an expression node.
+// Returns the field descriptor and message descriptor, or nil if field not found.
+// Adds errors when fields don't exist or cannot be traversed.
+func (pv *ProtoValidator) resolveFieldDescriptor(node ast.Node, msgDesc protoreflect.MessageDescriptor, errors *[]error) (protoreflect.FieldDescriptor, protoreflect.MessageDescriptor) {
+	switch n := node.(type) {
+	case *ast.Identifier:
+		fieldDesc := msgDesc.Fields().ByName(protoreflect.Name(n.Value))
+		if fieldDesc == nil {
+			pv.addError(errors, "field '%s' does not exist in message %s", n.Value, msgDesc.Name())
+			return nil, nil
+		}
+		return fieldDesc, msgDesc
+
+	case *ast.TraversalExpression:
+		// Recursively resolve left side first
+		leftField, _ := pv.resolveFieldDescriptor(n.Left, msgDesc, errors)
+		if leftField == nil {
+			return nil, nil
+		}
+
+		// Ensure left side is a message
+		if leftField.Kind() != protoreflect.MessageKind {
+			pv.addError(errors, "cannot traverse into non-message field '%s' (type: %s)",
+				pv.getFieldPath(n.Left), leftField.Kind())
+			return nil, nil
+		}
+
+		// Get nested descriptor and continue resolution
+		nestedDesc := leftField.Message()
+		return pv.resolveFieldDescriptor(n.Right, nestedDesc, errors)
+
+	default:
+		return nil, nil
+	}
+}
+
+// validateNodeWithDescriptor validates a node against a specific message descriptor.
+// Used for validating nested fields in the context of a nested message.
+// Delegates to resolveFieldDescriptor to avoid code duplication.
+func (pv *ProtoValidator) validateNodeWithDescriptor(node ast.Node, msgDesc protoreflect.MessageDescriptor, errors *[]error) {
+	// Simply delegate to resolveFieldDescriptor which already handles
+	// both Identifier and TraversalExpression cases with proper error reporting
+	pv.resolveFieldDescriptor(node, msgDesc, errors)
+}
+
+// getFieldPath returns the full field path as a string (e.g., "email.address").
+func (pv *ProtoValidator) getFieldPath(node ast.Node) string {
+	switch n := node.(type) {
+	case *ast.Identifier:
+		return n.Value
+	case *ast.TraversalExpression:
+		return pv.getFieldPath(n.Left) + "." + pv.getFieldPath(n.Right)
+	default:
+		return ""
+	}
 }

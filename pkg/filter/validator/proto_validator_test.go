@@ -451,3 +451,80 @@ func TestProtoValidator_EnumValidation_NonPrefixedEnum_InvalidValues(t *testing.
 		})
 	}
 }
+
+// === Nested Traversal Tests (TDD Cycle 5) ===
+
+// TestProtoValidator_NestedTraversal_Valid tests valid nested field access.
+// 🔴 RED: Should FAIL initially - validateTraversal is not implemented
+func TestProtoValidator_NestedTraversal_Valid(t *testing.T) {
+	contact := &testdata.Contact{}
+	msgDesc := contact.ProtoReflect().Descriptor()
+
+	tests := []struct {
+		name   string
+		filter string
+	}{
+		{"one level", `email.address = "test@example.com"`},
+		{"one level bool", `email.verified = true`},
+		{"nested message", `address.city = "Seattle"`},
+		{"different nested", `profile.theme = "dark"`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+			if len(errs) > 0 {
+				t.Errorf("Expected no errors for valid nested field '%s', got: %v", tt.filter, errs)
+			}
+		})
+	}
+}
+
+// TestProtoValidator_NestedTraversal_InvalidField tests traversal with non-existent nested fields.
+// 🔴 RED: Should FAIL initially
+func TestProtoValidator_NestedTraversal_InvalidField(t *testing.T) {
+	contact := &testdata.Contact{}
+	msgDesc := contact.ProtoReflect().Descriptor()
+
+	tests := []struct {
+		name   string
+		filter string
+	}{
+		{"nested field doesn't exist", `email.invalid = "test"`},
+		{"top level doesn't exist", `nonexistent.field = "test"`},
+		{"deep nesting invalid", `address.zipcode = "98101"`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+			if len(errs) == 0 {
+				t.Errorf("Expected validation error for '%s', got none", tt.filter)
+			}
+		})
+	}
+}
+
+// TestProtoValidator_NestedTraversal_NonMessageType tests traversal into non-message fields.
+// 🔴 RED: Should FAIL initially - can't traverse into strings, ints, etc.
+func TestProtoValidator_NestedTraversal_NonMessageType(t *testing.T) {
+	contact := &testdata.Contact{}
+	msgDesc := contact.ProtoReflect().Descriptor()
+
+	tests := []struct {
+		name   string
+		filter string
+	}{
+		{"traverse into string", `name.invalid = "test"`},
+		{"traverse into bool", `email.verified.nope = "test"`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+			if len(errs) == 0 {
+				t.Errorf("Expected validation error for non-message traversal '%s', got none", tt.filter)
+			}
+		})
+	}
+}

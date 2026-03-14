@@ -846,3 +846,61 @@ func TestProtoValidator_SingularMessage_Has(t *testing.T) {
 		})
 	}
 }
+
+// TestProtoValidator_Has_Integration tests HAS operator with logical operators (Phase 6F).
+// Per AIP-160: HAS should work seamlessly with AND, OR, NOT in complex expressions.
+func TestProtoValidator_Has_Integration(t *testing.T) {
+	tests := []struct {
+		name    string
+		filter  string
+		wantErr bool
+		errCnt  int
+	}{
+		// F1: Multiple HAS with AND
+		{"has AND has same field", `tags:"urgent" AND tags:"important"`, false, 0},
+		{"has AND has different fields", `tags:"urgent" AND scores:100`, false, 0},
+		{"nested has AND nested has", `emails.address:"test" AND emails.metadata.source:"web"`, false, 0},
+
+		// F2: Multiple HAS with OR
+		{"has OR has same field", `tags:"urgent" OR tags:"important"`, false, 0},
+		{"has OR has different fields", `tags:"urgent" OR scores:100`, false, 0},
+		{"repeated enum OR", `statuses:"ACTIVE" OR statuses:"COMPLETED"`, false, 0},
+
+		// F3: NOT with HAS
+		{"NOT has", `NOT tags:"urgent"`, false, 0},
+		{"NOT nested has", `NOT emails.address:"test@example.com"`, false, 0},
+
+		// F4: HAS with comparisons
+		{"has AND comparison", `tags:"urgent" AND age > 25`, false, 0},
+		{"comparison AND has", `active = true AND tags:"important"`, false, 0},
+		{"has OR comparison", `tags:"urgent" OR age < 18`, false, 0},
+
+		// F5: Complex nested combinations
+		{"parentheses with has", `(tags:"urgent" OR tags:"important") AND active = true`, false, 0},
+		{"deep nesting with has", `(tags:"urgent" AND scores:100) OR (statuses:"COMPLETED" AND age > 50)`, false, 0},
+		{"NOT with AND", `NOT (tags:"urgent" AND scores:100)`, false, 0},
+
+		// F6: Invalid combinations - type errors should still be caught
+		{"has type mismatch", `tags:123`, true, 1}, // tags is string[], not int[]
+		{"has invalid enum", `statuses:"INVALID_STATUS"`, true, 1},
+		{"has AND invalid type", `tags:"urgent" AND scores:"not_a_number"`, true, 1},
+
+		// F7: Singular + repeated HAS together
+		{"singular and repeated has", `email.address:"test" AND emails.address:"example"`, false, 0},
+		{"mixed has with logic", `email.metadata.priority:1 OR tags:"urgent"`, false, 0}, // priority is int32
+	}
+
+	msgDesc := (&testdata.TestProtoData{}).ProtoReflect().Descriptor()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+			if (len(errs) > 0) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", errs, tt.wantErr)
+			}
+			if len(errs) != tt.errCnt {
+				t.Errorf("Validate() error count = %d, want %d. Errors: %v", len(errs), tt.errCnt, errs)
+			}
+		})
+	}
+}

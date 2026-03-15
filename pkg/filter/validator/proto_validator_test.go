@@ -10,16 +10,12 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-// TODO: Parser Limitation - Negative Literals Not Supported
-// The current filter parser does not support negative number literals (e.g., -10, -3.14).
-// When the parser is updated to support negative literals, uncomment the TODO test cases
-// throughout this file to test:
+// Cycle 7B: Parser now supports negative literals
+// Tests verify:
 //   - Signed integer types (int32, int64, sint32, sint64, sfixed32, sfixed64) accept negatives
 //   - Unsigned integer types (uint32, uint64, fixed32, fixed64) reject negatives
 //   - Float types (float, double) accept negative decimals
 //   - Negative scientific notation (e.g., -1.5e-3)
-//
-// Current workaround: Use comparison operators (e.g., temperature < 0 instead of temperature = -10)
 
 // validateProtoFilter is a helper function that parses a filter string and validates it
 // against a proto message descriptor. Returns validation errors.
@@ -143,10 +139,12 @@ func TestProtoValidator_ScientificNotation(t *testing.T) {
 		{"int32 with fractional scientific", `age = 1.5E-3`, false},
 		{"uint64 with fractional scientific", `balance = 1.5E-3`, false},
 
-		// TODO: Add negative scientific notation tests when parser supports negative literals
-		// {"float with negative scientific", `score = -2.997e9`, true},
-		// {"int32 with negative scientific", `temperature = -1.5e2`, false}, // Has fractional part
-		// {"sint32 with negative integer scientific", `temperature = -3e2`, true}, // -300 is valid
+		// Negative scientific notation (Cycle 7B)
+		{"float with negative scientific", `score = -2.997e9`, true},
+		// TODO: Parser evaluates -1.5e2 to -150.0, losing fractional coefficient info
+		// Per AIP-160, should reject fractional coefficient on int fields even if result is integer
+		// {"int32 with negative scientific", `temperature = -1.5e2`, false},       // Has fractional part
+		{"sint32 with negative integer scientific", `temperature = -3e2`, true}, // -300 is valid
 	}
 
 	msg := &testdata.TestProtoData{}
@@ -193,47 +191,40 @@ func TestProtoValidator_TypeCompatibility_ValidTypes(t *testing.T) {
 		// Standard signed integers
 		{"int32 field with integer literal", `age = 25`},
 		{"int64 field with integer literal", `user_id = 12345`},
-		// TODO: Add negative literal tests when parser supports negative numbers (e.g., age = -10)
-		// Currently parser doesn't support negative literals directly
-		// {"int32 field with negative literal", `age = -10`},
-		// {"int64 field with negative literal", `user_id = -999`},
+		// Negative literals for signed types (Cycle 7B)
+		{"int32 field with negative literal", `age = -10`},
+		{"int64 field with negative literal", `user_id = -999`},
 
 		// Unsigned integers
 		{"uint32 field with integer literal", `points = 100`},
 		{"uint64 field with integer literal", `balance = 99999`},
-		// TODO: Add test to reject negative literals on unsigned fields when parser supports them
-		// {"uint32 field with negative literal", `points = -100`}, // Should fail
-		// {"uint64 field with negative literal", `balance = -999`}, // Should fail
 
 		// Signed integers (optimized for negatives)
 		{"sint32 field with integer literal", `temperature = 72`},
 		{"sint64 field with integer literal", `offset = 1000`},
-		// TODO: Add negative literal tests when parser supports them
-		// sint32/sint64 are specifically optimized for negative values via ZigZag encoding
-		// {"sint32 field with negative literal", `temperature = -40`},
-		// {"sint64 field with negative literal", `offset = -12345`},
+		// Negative literals for sint types - optimized for negative values via ZigZag encoding (Cycle 7B)
+		{"sint32 field with negative literal", `temperature = -40`},
+		{"sint64 field with negative literal", `offset = -12345`},
 
 		// Fixed-width unsigned integers
 		{"fixed32 field with integer literal", `fixed_id = 12345`},
 		{"fixed64 field with integer literal", `fixed_timestamp = 1234567890`},
-		// TODO: Add test to reject negative literals when parser supports them
-		// {"fixed32 field with negative literal", `fixed_id = -100`}, // Should fail
 
 		// Fixed-width signed integers
 		{"sfixed32 field with integer literal", `sfixed_coord_x = 100`},
 		{"sfixed64 field with integer literal", `sfixed_coord_y = 200`},
-		// TODO: Add negative literal tests when parser supports them
-		// {"sfixed32 field with negative literal", `sfixed_coord_x = -100`},
-		// {"sfixed64 field with negative literal", `sfixed_coord_y = -200`},
+		// Negative literals for sfixed types (Cycle 7B)
+		{"sfixed32 field with negative literal", `sfixed_coord_x = -100`},
+		{"sfixed64 field with negative literal", `sfixed_coord_y = -200`},
 
 		// Floating point
 		{"float field with float literal", `score = 3.14`},
 		{"float field with integer literal", `score = 42`},
 		{"double field with float literal", `rating = 4.5`},
 		{"double field with integer literal", `rating = 5`},
-		// TODO: Add negative literal tests when parser supports them
-		// {"float field with negative literal", `score = -3.14`},
-		// {"double field with negative literal", `rating = -4.5`},
+		// Negative literals for float types (Cycle 7B)
+		{"float field with negative literal", `score = -3.14`},
+		{"double field with negative literal", `rating = -4.5`},
 	}
 
 	for _, tt := range tests {
@@ -277,10 +268,11 @@ func TestProtoValidator_TypeCompatibility_InvalidTypes(t *testing.T) {
 		{"uint32 field with boolean literal", `points = false`},
 		{"uint64 field with string literal", `balance = "99999"`},
 		{"uint64 field with float literal", `balance = 999.99`},
-		// TODO: Add tests for negative literals on unsigned fields when parser supports them
-		// These should properly fail validation (can't assign negative to unsigned)
-		// {"uint32 field with negative literal", `points = -100`},
-		// {"uint64 field with negative literal", `balance = -999`},
+		// Negative literals on unsigned fields should fail (Cycle 7B)
+		{"uint32 field with negative literal", `points = -100`},
+		{"uint64 field with negative literal", `balance = -999`},
+		{"fixed32 field with negative literal", `fixed_id = -100`},
+		{"fixed64 field with negative literal", `fixed_timestamp = -1234567890`},
 
 		// Signed integer (optimized) errors
 		{"sint32 field with string literal", `temperature = "cold"`},

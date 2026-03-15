@@ -259,6 +259,13 @@ func (pv *ProtoValidator) validateTypeCompatibility(expr *ast.ComparisonExpressi
 				leftKind, rightKind)
 			return false
 		}
+
+		// Check if negative literal is used on unsigned field (Cycle 7B)
+		if pv.isUnsignedKind(fieldDesc.Kind()) && pv.isNegativeLiteral(expr.Right) {
+			pv.addError(errors, "cannot assign negative value to unsigned field '%s' of type %s",
+				pv.getFieldPath(expr.Left), fieldDesc.Kind())
+			return false
+		}
 	}
 
 	return true // Type compatibility validated
@@ -369,6 +376,7 @@ func (pv *ProtoValidator) isValidOperatorForKind(operator string, kind protorefl
 //
 // For numeric literals, distinguishes between integer and float based on
 // whether the value has a fractional part (e.g., 23 vs 23.55).
+// Handles UnaryExpression with "-" operator for negative literals (Cycle 7B).
 func (pv *ProtoValidator) getExpressionKind(node ast.Node) (protoreflect.Kind, bool) {
 	switch n := node.(type) {
 	case *ast.Identifier, *ast.TraversalExpression:
@@ -388,6 +396,13 @@ func (pv *ProtoValidator) getExpressionKind(node ast.Node) (protoreflect.Kind, b
 		return protoreflect.Int64Kind, true
 	case *ast.BooleanLiteral:
 		return protoreflect.BoolKind, true
+	case *ast.UnaryExpression:
+		// Handle negative literals: -5, -3.14 (Cycle 7B)
+		// Per AIP-160, - operator is used for both negation (NOT) and negative literals
+		if n.Operator == "-" {
+			// Recursively get the kind of the right operand
+			return pv.getExpressionKind(n.Right)
+		}
 	}
 	return 0, false
 }
@@ -693,4 +708,27 @@ func isStarLiteral(node ast.Node) bool {
 		return ident.Value == "*"
 	}
 	return false
+}
+
+// === Negative Literal Helpers (Cycle 7B) ===
+
+// isNegativeLiteral checks if an expression is a negative number literal.
+// Detects UnaryExpression with "-" operator wrapping a NumberLiteral.
+// Examples: -5, -3.14, -1.5e-3
+func (pv *ProtoValidator) isNegativeLiteral(node ast.Node) bool {
+	unary, ok := node.(*ast.UnaryExpression)
+	if !ok || unary.Operator != "-" {
+		return false
+	}
+	_, isNumber := unary.Right.(*ast.NumberLiteral)
+	return isNumber
+}
+
+// isUnsignedKind checks if a proto kind is an unsigned integer type.
+// Unsigned types: uint32, uint64, fixed32, fixed64
+func (pv *ProtoValidator) isUnsignedKind(kind protoreflect.Kind) bool {
+	return kind == protoreflect.Uint32Kind ||
+		kind == protoreflect.Uint64Kind ||
+		kind == protoreflect.Fixed32Kind ||
+		kind == protoreflect.Fixed64Kind
 }

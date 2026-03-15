@@ -267,6 +267,14 @@ func (pv *ProtoValidator) validateTypeCompatibility(expr *ast.ComparisonExpressi
 	leftKind, leftOk := pv.getExpressionKind(expr.Left)
 	rightKind, rightOk := pv.getExpressionKind(expr.Right)
 
+	// Check if bare star is used in comparison (Cycle 7D)
+	// Per AIP-160: bare * is only valid with HAS (:), not comparison operators
+	// e.g. field = * not supported
+	if isStarLiteral(expr.Right) {
+		pv.addError(errors, "star operator (*) only valid with HAS (:), not comparison (%s)", expr.Operator)
+		return false
+	}
+
 	if leftOk && rightOk {
 		if !pv.protoKindsCompatible(leftKind, rightKind) {
 			pv.addError(errors, "cannot compare %s field with %s value",
@@ -585,7 +593,7 @@ func (pv *ProtoValidator) getFieldPath(node ast.Node) string {
 // - Repeated fields: r:"value" checks if repeated field contains value
 // - Maps: m:key checks if map contains key (TODO v2: not yet implemented)
 // - Singular messages: m.field:"value" checks nested field
-// - Star operator: m:* checks presence (TODO: parser limitation)
+// - Star operator: m:* checks presence (non-empty/set)
 //
 // TODO v2 (Map Support): Implement map field validation per AIP-160.
 // Map HAS syntax: m:key (key exists), m.key:* (key present), m.key:value (key-value match).
@@ -666,10 +674,16 @@ func (pv *ProtoValidator) validateHas(expr *ast.HasExpression, errors *[]error) 
 	// - Maps (TODO: not yet implemented)
 
 	// For simple identifiers (not traversals), field must be repeated
+	// UNLESS it's a star operator for presence check (Cycle 7D)
 	if !fieldDesc.IsList() {
 		if _, isSimple := expr.Collection.(*ast.Identifier); isSimple {
-			// Simple identifier that's not repeated
-			// TODO: Support m:* for message presence checks when parser supports star
+			// Allow star operator for message presence checks on singular fields
+			// Per AIP-160: m:* checks if message field m is present (non-default)
+			if isStarLiteral(expr.Member) && fieldDesc.Kind() == protoreflect.MessageKind {
+				return // Valid: singular message presence check
+			}
+
+			// Simple identifier that's not repeated (and not star on message)
 			pv.addError(errors, "HAS operator on simple fields requires repeated field, got singular %s", fieldDesc.Kind())
 			return
 		}

@@ -2,6 +2,7 @@ package validator
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -288,6 +289,14 @@ func (pv *ProtoValidator) validateTypeCompatibility(expr *ast.ComparisonExpressi
 				pv.getFieldPath(expr.Left), fieldDesc.Kind())
 			return false
 		}
+
+		// Cycle 8A: Validate integer overflow per AIP-160 "align to type" requirement
+		// Check numeric values are within valid range for integer types
+		if isIntegerKind(fieldDesc.Kind()) {
+			if num, ok := getNumericValue(expr.Right); ok {
+				pv.validateNumericRange(num, fieldDesc.Kind(), pv.getFieldPath(expr.Left), errors)
+			}
+		}
 	}
 
 	return true // Type compatibility validated
@@ -449,6 +458,14 @@ func (pv *ProtoValidator) protoKindsCompatible(left, right protoreflect.Kind) bo
 
 	// Integer types - only compatible with integer literals
 	if isProtoIntegerKind(left) {
+		// Special case: uint64 and fixed64 can accept very large numbers
+		// that might be represented as DoubleKind due to their magnitude,
+		// BUT we still validate they're actually integers (no fractional part)
+		if (left == protoreflect.Uint64Kind || left == protoreflect.Fixed64Kind) && right == protoreflect.DoubleKind {
+			// Type compatibility passes, but validateNumericRange will check
+			// if it's actually an integer and within bounds
+			return true
+		}
 		return isProtoIntegerKind(right)
 	}
 
@@ -769,4 +786,104 @@ func (pv *ProtoValidator) isUnsignedKind(kind protoreflect.Kind) bool {
 		kind == protoreflect.Uint64Kind ||
 		kind == protoreflect.Fixed32Kind ||
 		kind == protoreflect.Fixed64Kind
+}
+
+// =============================================================================
+// Cycle 8A: Integer Overflow Detection (AIP-160 "Align to Type")
+// =============================================================================
+
+// isIntegerKind checks if a proto kind is any integer type.
+// Returns true for all 10 proto3 integer kinds.
+func isIntegerKind(kind protoreflect.Kind) bool {
+	return kind == protoreflect.Int32Kind ||
+		kind == protoreflect.Int64Kind ||
+		kind == protoreflect.Uint32Kind ||
+		kind == protoreflect.Uint64Kind ||
+		kind == protoreflect.Sint32Kind ||
+		kind == protoreflect.Sint64Kind ||
+		kind == protoreflect.Fixed32Kind ||
+		kind == protoreflect.Fixed64Kind ||
+		kind == protoreflect.Sfixed32Kind ||
+		kind == protoreflect.Sfixed64Kind
+}
+
+// getNumericValue extracts a float64 value from an expression.
+// Handles both NumberLiteral and UnaryExpression (negative numbers).
+// Returns (value, true) if extraction succeeds, (0, false) otherwise.
+func getNumericValue(expr ast.Expression) (float64, bool) {
+	switch e := expr.(type) {
+	case *ast.NumberLiteral:
+		return e.Value, true
+	case *ast.UnaryExpression:
+		if e.Operator == "-" {
+			if val, ok := getNumericValue(e.Right); ok {
+				return -val, true
+			}
+		}
+	}
+	return 0, false
+}
+
+// validateNumericRange checks if a numeric value is within the valid range
+// for the given proto field kind using math package constants.
+//
+// Per AIP-160 Validation section: "Field values...MUST align to the type of the field"
+// Example given: "age=hello" is invalid for int32 field (wrong type)
+// Our extension: "age=2147483648" is also invalid (exceeds math.MaxInt32)
+//
+// Rationale: If a value cannot be represented in the field's type, it doesn't
+// "align to" that type, following the same principle as type mismatches.
+//
+// Note on float64 precision: Large int64/uint64 values may lose precision when
+// represented as float64 (which the parser uses). This is acceptable for
+// validation purposes as we're checking boundaries, not exact values.
+func (pv *ProtoValidator) validateNumericRange(value float64, fieldKind protoreflect.Kind, fieldName string, errors *[]error) {
+	switch fieldKind {
+	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
+		// Range: [-2147483648, 2147483647]
+		if value < math.MinInt32 || value > math.MaxInt32 {
+			pv.addError(errors, "value %v exceeds %s range [%d, %d] for field '%s'",
+				value, fieldKind, math.MinInt32, math.MaxInt32, fieldName)
+		}
+
+	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
+		// Range: [0, 4294967295]
+		if value < 0 || value > math.MaxUint32 {
+			pv.addError(errors, "value %v exceeds %s range [0, %d] for field '%s'",
+				value, fieldKind, math.MaxUint32, fieldName)
+		}
+
+	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
+		// Range: [-9223372036854775808, 9223372036854775807]
+		// Note: math.MinInt64/MaxInt64 cannot be exactly represented in float64
+		// Using slightly wider tolerance to account for float64 precision limits
+		const maxInt64Float = 9.223372036854776e18  // Slightly above MaxInt64
+		const minInt64Float = -9.223372036854776e18 // Slightly below MinInt64
+		if value < minInt64Float || value > maxInt64Float {
+			pv.addError(errors, "value %v exceeds %s range [%d, %d] for field '%s'",
+				value, fieldKind, math.MinInt64, math.MaxInt64, fieldName)
+		}
+
+	case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
+		// Range: [0, 18446744073709551615]
+		// Note: MaxUint64 cannot be exactly represented in float64
+		// Using slightly wider tolerance to account for float64 precision limits
+		const maxUint64Float = 1.8446744073709552e19 // Slightly above MaxUint64
+
+		// Check if value has fractional part (not an integer)
+		// Only check for values that can be represented as int64 (to avoid overflow in conversion)
+		if value > 0 && value < float64(math.MaxInt64) {
+			if value != float64(int64(value)) {
+				// Has fractional part - invalid for integer field
+				pv.addError(errors, "value %v has fractional part, cannot assign to %s field '%s'",
+					value, fieldKind, fieldName)
+				return
+			}
+		}
+
+		if value < 0 || value > maxUint64Float {
+			pv.addError(errors, "value %v exceeds %s range [0, %d] for field '%s'",
+				value, fieldKind, uint64(math.MaxUint64), fieldName)
+		}
+	}
 }

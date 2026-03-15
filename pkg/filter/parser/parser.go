@@ -227,8 +227,8 @@ func (p *Parser) parseValue() ast.Expression {
 	case lexer.LPAREN:
 		return p.parseGroupedExpression()
 	case lexer.MINUS:
-		// Negative number literal (Cycle 7A)
-		return p.parseNegativeNumber()
+		// Handle unary minus: negative literals or negation (Cycle 7A)
+		return p.parseMinus()
 	default:
 		msg := fmt.Sprintf("unexpected token: %s", p.currentToken.Type)
 		p.errors = append(p.errors, msg)
@@ -434,32 +434,41 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 	return expression
 }
 
-// parseNegativeNumber parses a negative number literal OR unary minus on identifier (Cycle 7A)
-// Handles two cases:
-// 1. Negative number: -5, -3.14, -1.5e-3 (when followed by NUMBER)
-// 2. Unary NOT: -active, -enabled (shorthand for NOT, when followed by IDENTIFIER)
-// Returns a UnaryExpression with operator "-" and appropriate right child
-func (p *Parser) parseNegativeNumber() ast.Expression {
+// parseMinus dispatches between negative number literals and negation operators (Cycle 7A)
+// The MINUS token can represent two distinct operations per AIP-160:
+// 1. Negative number literal: -5, -3.14, -1.5e-3 (when followed by NUMBER)
+// 2. Negation operator: -active, -enabled (shorthand for NOT, when followed by expression)
+func (p *Parser) parseMinus() ast.Expression {
 	minusToken := p.currentToken
 	p.nextToken()
 
-	// Check what follows the MINUS
+	// Dispatch based on what follows the MINUS
 	if p.currentTokenIs(lexer.NUMBER) {
-		// Case 1: Negative number literal (-5, -3.14)
-		numLit := p.parseNumber()
-		if numLit == nil {
-			return nil
-		}
-
-		return &ast.UnaryExpression{
-			Token:    minusToken,
-			Operator: "-",
-			Right:    numLit,
-		}
+		return p.parseNegativeLiteral(minusToken)
 	}
 
-	// Case 2: Unary NOT on identifier (-active, -enabled)
-	// Parse the rest as a value (could be identifier, grouped expression, etc.)
+	return p.parseNegation(minusToken)
+}
+
+// parseNegativeLiteral parses a negative number literal: -5, -3.14, -1.5e-3 (Cycle 7A)
+// Returns a UnaryExpression with operator "-" and a NumberLiteral as right child
+func (p *Parser) parseNegativeLiteral(minusToken lexer.Token) ast.Expression {
+	numLit := p.parseNumber()
+	if numLit == nil {
+		return nil
+	}
+
+	return &ast.UnaryExpression{
+		Token:    minusToken,
+		Operator: "-",
+		Right:    numLit,
+	}
+}
+
+// parseNegation parses a negation operator: -active, -enabled (Cycle 7A)
+// Per AIP-160, - is shorthand for NOT operator
+// Returns a UnaryExpression with operator "-" and the negated expression as right child
+func (p *Parser) parseNegation(minusToken lexer.Token) ast.Expression {
 	right := p.parseValue()
 	if right == nil {
 		return nil

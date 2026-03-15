@@ -249,25 +249,42 @@ func TestLogicalOr(t *testing.T) {
 
 // TestNotExpression tests parsing of NOT expressions
 func TestNotExpression(t *testing.T) {
-	input := `NOT active`
-
-	l := lexer.New(input)
-	p := New(l)
-	program := p.ParseProgram()
-	checkParserErrors(t, p)
-
-	unary, ok := program.Expression.(*ast.UnaryExpression)
-	if !ok {
-		t.Fatalf("expression not *ast.UnaryExpression. got=%T", program.Expression)
+	tests := []struct {
+		input            string
+		expectedOperator string
+		expectedIdent    string
+		description      string
+	}{
+		{"NOT active", "NOT", "active", "NOT keyword operator"},
+		{"-active", "-", "active", "shorthand NOT with minus"},
+		{"-enabled", "-", "enabled", "shorthand NOT identifier"},
 	}
 
-	if unary.Operator != "NOT" {
-		t.Errorf("unary.Operator wrong. expected=%q, got=%q", "NOT", unary.Operator)
-	}
+	for _, tt := range tests {
+		t.Run(tt.description, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
 
-	_, ok = unary.Right.(*ast.Identifier)
-	if !ok {
-		t.Errorf("unary.Right not Identifier. got=%T", unary.Right)
+			unary, ok := program.Expression.(*ast.UnaryExpression)
+			if !ok {
+				t.Fatalf("expression not *ast.UnaryExpression. got=%T", program.Expression)
+			}
+
+			if unary.Operator != tt.expectedOperator {
+				t.Errorf("unary.Operator wrong. expected=%q, got=%q", tt.expectedOperator, unary.Operator)
+			}
+
+			ident, ok := unary.Right.(*ast.Identifier)
+			if !ok {
+				t.Errorf("unary.Right not Identifier. got=%T", unary.Right)
+			}
+
+			if ident.Value != tt.expectedIdent {
+				t.Errorf("ident.Value wrong. expected='%s', got='%s'", tt.expectedIdent, ident.Value)
+			}
+		})
 	}
 }
 
@@ -885,6 +902,165 @@ func TestErrorHandlingModule5(t *testing.T) {
 			errors := p.Errors()
 			if len(errors) == 0 {
 				t.Errorf("expected errors for %q, got none", tt.input)
+			}
+		})
+	}
+}
+
+// TestNegativeNumberLiteral tests parsing of negative number literals (TDD Cycle 7A RED)
+func TestNegativeNumberLiteral(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected float64
+	}{
+		{"-5", -5},
+		{"-42", -42},
+		{"-3.14", -3.14},
+		{"-0.5", -0.5},
+		{"-1.5e-3", -1.5e-3},
+		{"-2.998e8", -2.998e8},
+	}
+
+	for _, tt := range tests {
+		l := lexer.New(tt.input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		unary, ok := program.Expression.(*ast.UnaryExpression)
+		if !ok {
+			t.Fatalf("expression not *ast.UnaryExpression. got=%T", program.Expression)
+		}
+
+		if unary.Operator != "-" {
+			t.Errorf("unary.Operator wrong. expected='-', got='%s'", unary.Operator)
+		}
+
+		num, ok := unary.Right.(*ast.NumberLiteral)
+		if !ok {
+			t.Fatalf("unary.Right not *ast.NumberLiteral. got=%T", unary.Right)
+		}
+
+		if num.Value != -tt.expected {
+			t.Errorf("num.Value wrong. expected=%f, got=%f", -tt.expected, num.Value)
+		}
+	}
+}
+
+// TestNegativeNumberInComparison tests negative numbers in comparison expressions
+func TestNegativeNumberInComparison(t *testing.T) {
+	tests := []struct {
+		input    string
+		field    string
+		operator string
+		value    float64
+	}{
+		{"age = -5", "age", "=", -5},
+		{"temperature < -10", "temperature", "<", -10},
+		{"score > -3.14", "score", ">", -3.14},
+		{"balance != -100", "balance", "!=", -100},
+	}
+
+	for _, tt := range tests {
+		l := lexer.New(tt.input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		comp, ok := program.Expression.(*ast.ComparisonExpression)
+		if !ok {
+			t.Fatalf("expression not *ast.ComparisonExpression. got=%T", program.Expression)
+		}
+
+		ident, ok := comp.Left.(*ast.Identifier)
+		if !ok {
+			t.Fatalf("comp.Left not *ast.Identifier. got=%T", comp.Left)
+		}
+
+		if ident.Value != tt.field {
+			t.Errorf("ident.Value wrong. expected='%s', got='%s'", tt.field, ident.Value)
+		}
+
+		if comp.Operator != tt.operator {
+			t.Errorf("comp.Operator wrong. expected='%s', got='%s'", tt.operator, comp.Operator)
+		}
+
+		unary, ok := comp.Right.(*ast.UnaryExpression)
+		if !ok {
+			t.Fatalf("comp.Right not *ast.UnaryExpression. got=%T", comp.Right)
+		}
+
+		if unary.Operator != "-" {
+			t.Errorf("unary.Operator wrong. expected='-', got='%s'", unary.Operator)
+		}
+
+		num, ok := unary.Right.(*ast.NumberLiteral)
+		if !ok {
+			t.Fatalf("unary.Right not *ast.NumberLiteral. got=%T", unary.Right)
+		}
+
+		if num.Value != -tt.value {
+			t.Errorf("num.Value wrong. expected=%f, got=%f", -tt.value, num.Value)
+		}
+	}
+}
+
+// TestNegativeInLogicalExpression tests negative numbers in logical expressions
+func TestNegativeInLogicalExpression(t *testing.T) {
+	input := "age = -5 AND active = true"
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	logical, ok := program.Expression.(*ast.LogicalExpression)
+	if !ok {
+		t.Fatalf("expression not *ast.LogicalExpression. got=%T", program.Expression)
+	}
+
+	if logical.Operator != "AND" {
+		t.Errorf("logical.Operator wrong. expected='AND', got='%s'", logical.Operator)
+	}
+
+	// Check left side has negative number
+	leftComp, ok := logical.Left.(*ast.ComparisonExpression)
+	if !ok {
+		t.Fatalf("logical.Left not *ast.ComparisonExpression. got=%T", logical.Left)
+	}
+
+	unary, ok := leftComp.Right.(*ast.UnaryExpression)
+	if !ok {
+		t.Fatalf("leftComp.Right not *ast.UnaryExpression. got=%T", leftComp.Right)
+	}
+
+	if unary.Operator != "-" {
+		t.Errorf("unary.Operator wrong. expected='-', got='%s'", unary.Operator)
+	}
+}
+
+// TestNotVsNegative ensures NOT operator still works and doesn't conflict with negative numbers
+func TestNotVsNegative(t *testing.T) {
+	tests := []struct {
+		input       string
+		description string
+	}{
+		{"NOT age = 5", "NOT operator on positive number"},
+		{"age = -5", "negative number literal"},
+		{"NOT temperature < 0", "NOT with comparison to zero"},
+		{"temperature = -10", "negative number in comparison"},
+		{"-temperature < 0", "- with comparison to zero"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.description, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			if program.Expression == nil {
+				t.Fatalf("program.Expression is nil for input: %s", tt.input)
 			}
 		})
 	}

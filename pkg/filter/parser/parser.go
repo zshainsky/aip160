@@ -208,7 +208,7 @@ func (p *Parser) isComparisonOperator(t lexer.TokenType) bool {
 }
 
 // parseValue dispatches to the appropriate parser based on token type
-// Grammar: value = function_call | field | string | number | boolean | null | "(", expression, ")" ;
+// Grammar: value = function_call | field | string | number | boolean | null | "(", expression, ")" | "-", number ;
 func (p *Parser) parseValue() ast.Expression {
 	// (Task 2): Implement minimal dispatcher
 	// Start with just STRING case to get first test passing:
@@ -226,6 +226,9 @@ func (p *Parser) parseValue() ast.Expression {
 		return p.parseIdentifier()
 	case lexer.LPAREN:
 		return p.parseGroupedExpression()
+	case lexer.MINUS:
+		// Negative number literal (Cycle 7A)
+		return p.parseNegativeNumber()
 	default:
 		msg := fmt.Sprintf("unexpected token: %s", p.currentToken.Type)
 		p.errors = append(p.errors, msg)
@@ -429,4 +432,42 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 	p.nextToken()
 	// Return the inner expression (no need to wrap in special node)
 	return expression
+}
+
+// parseNegativeNumber parses a negative number literal OR unary minus on identifier (Cycle 7A)
+// Handles two cases:
+// 1. Negative number: -5, -3.14, -1.5e-3 (when followed by NUMBER)
+// 2. Unary NOT: -active, -enabled (shorthand for NOT, when followed by IDENTIFIER)
+// Returns a UnaryExpression with operator "-" and appropriate right child
+func (p *Parser) parseNegativeNumber() ast.Expression {
+	minusToken := p.currentToken
+	p.nextToken()
+
+	// Check what follows the MINUS
+	if p.currentTokenIs(lexer.NUMBER) {
+		// Case 1: Negative number literal (-5, -3.14)
+		numLit := p.parseNumber()
+		if numLit == nil {
+			return nil
+		}
+
+		return &ast.UnaryExpression{
+			Token:    minusToken,
+			Operator: "-",
+			Right:    numLit,
+		}
+	}
+
+	// Case 2: Unary NOT on identifier (-active, -enabled)
+	// Parse the rest as a value (could be identifier, grouped expression, etc.)
+	right := p.parseValue()
+	if right == nil {
+		return nil
+	}
+
+	return &ast.UnaryExpression{
+		Token:    minusToken,
+		Operator: "-",
+		Right:    right,
+	}
 }

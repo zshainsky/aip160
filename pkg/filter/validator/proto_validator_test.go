@@ -260,6 +260,7 @@ func TestProtoValidator_TypeCompatibility_InvalidTypes(t *testing.T) {
 
 		// Standard signed integer errors
 		{"int32 field with string literal", `age = "twenty five"`},
+		{"int32 aip160 explicit example", `age = "hello"`}, // AIP-160 explicit example
 		{"int32 field with boolean literal", `age = true`},
 		{"int32 field with float literal", `age = 23.55`},
 		{"int64 field with string literal", `user_id = "12345"`},

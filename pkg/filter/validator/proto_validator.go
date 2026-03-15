@@ -393,12 +393,16 @@ func (pv *ProtoValidator) isValidOperatorForKind(operator string, kind protorefl
 	}
 }
 
-// getExpressionKind determines the proto kind of an expression.
+// getExpressionKind determines the proto kind of a value expression.
 // Returns the field's kind for identifiers/traversals, or inferred kind for literals.
 //
-// For numeric literals, distinguishes between integer and float based on
-// whether the value has a fractional part (e.g., 23 vs 23.55).
-// Handles UnaryExpression with "-" operator for negative literals (Cycle 7B).
+// Handles value expressions used in comparisons:
+// - Identifiers: age → field's kind
+// - Literals: "hello" → StringKind, 42 → Int64Kind, true → BoolKind
+// - Negative literals: -5 → unwraps UnaryExpression, returns number kind
+// - Traversals: user.email → nested field's kind
+//
+// Note: Does not handle logical operators (NOT, AND, OR) as they don't have a proto kind.
 func (pv *ProtoValidator) getExpressionKind(node ast.Node) (protoreflect.Kind, bool) {
 	switch n := node.(type) {
 	case *ast.Identifier, *ast.TraversalExpression:

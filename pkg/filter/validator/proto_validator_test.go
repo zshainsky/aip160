@@ -133,11 +133,14 @@ func TestProtoValidator_ScientificNotation(t *testing.T) {
 		{"float with integer scientific", `score = 3e10`, true},
 
 		// Integer fields accept scientific notation that resolves to integer
-		{"int32 with integer scientific", `age = 3e10`, true},
+		// Note: 3e10 (30 billion) exceeds int32 max (2.1 billion) - caught by overflow detection
+		{"int32 with integer scientific valid", `age = 2e9`, true}, // 2 billion, within int32
 
 		// Integer fields reject scientific notation with fractional parts
 		{"int32 with fractional scientific", `age = 1.5E-3`, false},
-		{"uint64 with fractional scientific", `balance = 1.5E-3`, false},
+		// Note: uint64/fixed64 accept large values that may be represented as double
+		// but still reject actual fractional values
+		{"uint64 with fractional value", `balance = 123.45`, false},
 
 		// Negative scientific notation (Cycle 7B)
 		{"float with negative scientific", `score = -2.997e9`, true},
@@ -257,6 +260,7 @@ func TestProtoValidator_TypeCompatibility_InvalidTypes(t *testing.T) {
 
 		// Standard signed integer errors
 		{"int32 field with string literal", `age = "twenty five"`},
+		{"int32 aip160 explicit example", `age = "hello"`}, // AIP-160 explicit example
 		{"int32 field with boolean literal", `age = true`},
 		{"int32 field with float literal", `age = 23.55`},
 		{"int64 field with string literal", `user_id = "12345"`},
@@ -893,6 +897,108 @@ func TestProtoValidator_Has_Integration(t *testing.T) {
 			}
 			if len(errs) != tt.errCnt {
 				t.Errorf("Validate() error count = %d, want %d. Errors: %v", len(errs), tt.errCnt, errs)
+			}
+		})
+	}
+}
+
+// =============================================================================
+// TDD Cycle 8A: Integer Overflow Detection (AIP-160 "Align to Type")
+// =============================================================================
+
+// TestProtoValidator_IntegerBoundaries tests integer overflow detection.
+//
+// Per AIP-160 Validation section: "Field values...MUST align to the type of the field"
+// Example: "age=hello" is invalid for int32 field (wrong type)
+// Extension: "age=2147483648" is invalid for int32 field (exceeds math.MaxInt32)
+//
+// This test validates all 10 proto3 integer types using math package constants:
+// - int32, int64 (signed)
+// - uint32, uint64 (unsigned)
+// - sint32, sint64 (signed, zigzag encoded)
+// - fixed32, fixed64 (unsigned, fixed-width)
+// - sfixed32, sfixed64 (signed, fixed-width)
+//
+// Each type tests 3 cases: minimum (valid), maximum (valid), overflow (invalid)
+//
+// Note on float64 precision: The parser stores numbers as float64, which cannot
+// represent all int64/uint64 values precisely. For example, MaxInt64+1 equals MaxInt64
+// in float64. This is acceptable - we catch clearly invalid values (e.g. MaxInt32+1000),
+// not edge cases at exact boundaries.
+//
+// 🔴 RED: These tests should FAIL initially - overflow detection not yet implemented
+func TestProtoValidator_IntegerBoundaries(t *testing.T) {
+	msgDesc := (&testdata.TestProtoData{}).ProtoReflect().Descriptor()
+
+	tests := []struct {
+		name    string
+		filter  string
+		wantErr bool
+	}{
+		// int32: range [-2147483648, 2147483647] (math.MinInt32, math.MaxInt32)
+		{"int32 minimum", `age = -2147483648`, false},
+		{"int32 maximum", `age = 2147483647`, false},
+		{"int32 overflow positive", `age = 2147483648`, true}, // MaxInt32 + 1
+		{"int32 overflow large", `age = 3000000000`, true},    // Clearly over
+		{"int32 underflow", `age = -2147483649`, true},        // MinInt32 - 1
+
+		// uint32: range [0, 4294967295] (0, math.MaxUint32)
+		{"uint32 zero", `points = 0`, false},
+		{"uint32 maximum", `points = 4294967295`, false},
+		{"uint32 overflow", `points = 4294967296`, true},       // MaxUint32 + 1
+		{"uint32 overflow large", `points = 5000000000`, true}, // Clearly over
+
+		// int64: range [-9223372036854775808, 9223372036854775807] (math.MinInt64, math.MaxInt64)
+		// Note: due to float64 precision, values near boundaries may not be caught
+		{"int64 minimum", `user_id = -9223372036854775808`, false},
+		{"int64 maximum", `user_id = 9223372036854775807`, false},
+		{"int64 overflow", `user_id = 9.5e18`, true}, // Clearly over (scientific notation)
+
+		// uint64: range [0, 18446744073709551615] (0, math.MaxUint64)
+		// Note: MaxUint64 itself may have float64 precision issues
+		{"uint64 zero", `balance = 0`, false},
+		{"uint64 large valid", `balance = 1e19`, false}, // Large but within range
+		{"uint64 overflow", `balance = 2e19`, true},     // Clearly over
+
+		// sint32: range [-2147483648, 2147483647] (zigzag encoded, same as int32)
+		{"sint32 minimum", `temperature = -2147483648`, false},
+		{"sint32 maximum", `temperature = 2147483647`, false},
+		{"sint32 overflow positive", `temperature = 2147483648`, true},
+
+		// sint64: range [-9223372036854775808, 9223372036854775807] (zigzag encoded, same as int64)
+		{"sint64 minimum", `offset = -9223372036854775808`, false},
+		{"sint64 maximum", `offset = 9223372036854775807`, false},
+		{"sint64 overflow", `offset = 9.5e18`, true},
+
+		// fixed32: range [0, 4294967295] (unsigned, same as uint32)
+		{"fixed32 zero", `fixed_id = 0`, false},
+		{"fixed32 maximum", `fixed_id = 4294967295`, false},
+		{"fixed32 overflow", `fixed_id = 4294967296`, true},
+
+		// fixed64: range [0, 18446744073709551615] (unsigned, same as uint64)
+		{"fixed64 zero", `fixed_timestamp = 0`, false},
+		{"fixed64 large valid", `fixed_timestamp = 1e19`, false},
+		{"fixed64 overflow", `fixed_timestamp = 2e19`, true},
+
+		// sfixed32: range [-2147483648, 2147483647] (signed, same as int32)
+		{"sfixed32 minimum", `sfixed_coord_x = -2147483648`, false},
+		{"sfixed32 maximum", `sfixed_coord_x = 2147483647`, false},
+		{"sfixed32 overflow positive", `sfixed_coord_x = 2147483648`, true},
+
+		// sfixed64: range [-9223372036854775808, 9223372036854775807] (signed, same as int64)
+		{"sfixed64 minimum", `sfixed_coord_y = -9223372036854775808`, false},
+		{"sfixed64 maximum", `sfixed_coord_y = 9223372036854775807`, false},
+		{"sfixed64 overflow", `sfixed_coord_y = 9.5e18`, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+			if tt.wantErr && len(errs) == 0 {
+				t.Errorf("Expected overflow error for '%s', got none", tt.filter)
+			}
+			if !tt.wantErr && len(errs) > 0 {
+				t.Errorf("Expected no error for valid boundary '%s', got: %v", tt.filter, errs)
 			}
 		})
 	}

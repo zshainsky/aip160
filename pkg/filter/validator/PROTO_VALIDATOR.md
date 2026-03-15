@@ -154,6 +154,40 @@ age = "twenty-five"    // Error: type mismatch (expects int, got string)
 active = 1             // Error: type mismatch (expects bool, got int)
 ```
 
+### ✅ Integer Overflow Detection
+
+Per AIP-160 Validation: "Field values...MUST align to the type of the field"
+
+ProtoValidator checks that numeric values are within valid ranges for integer types:
+
+| Type | Range | Example Overflow |
+|------|-------|------------------|
+| **int32** | [-2,147,483,648 to 2,147,483,647] | `age = 2147483648` |
+| **uint32** | [0 to 4,294,967,295] | `points = 4294967296` |
+| **int64** | [-9.2e18 to 9.2e18] | `user_id = 9.5e18` |
+| **uint64** | [0 to 1.8e19] | `balance = 2e19` |
+
+**All 10 integer types validated:** int32, int64, uint32, uint64, sint32, sint64, fixed32, fixed64, sfixed32, sfixed64
+
+```go
+// Valid boundaries
+age = -2147483648        // ✓ INT32_MIN
+age = 2147483647         // ✓ INT32_MAX
+points = 4294967295      // ✓ UINT32_MAX
+
+// Overflow errors
+age = 2147483648         // ✗ Error: exceeds int32 range
+age = 3000000000         // ✗ Error: clearly over limit
+points = -100            // ✗ Error: negative value for unsigned field
+```
+
+**AIP-160 Justification:**
+- The spec states: "age=hello" is invalid (wrong type)
+- By extension: "age=2147483648" is also invalid (cannot be represented in int32)
+- Both violate the requirement that values "align to" the field's type
+
+**Note on float64 precision:** The parser uses float64 for all numbers. At extreme boundaries (e.g., MaxInt64), float64 precision limits may prevent detecting values exactly 1 over the limit. This is acceptable - we catch clearly invalid values (e.g., MaxInt32+1000).
+
 ### ✅ Enum Validation with Prefix Stripping
 
 ProtoValidator supports flexible enum matching:

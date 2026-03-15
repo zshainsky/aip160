@@ -1065,3 +1065,47 @@ func TestNotVsNegative(t *testing.T) {
 		})
 	}
 }
+
+// TestStarOperator tests the star (*) operator for presence checks (Cycle 7C)
+// Per AIP-160: tags:* checks if tags field is present (non-empty)
+func TestStarOperator(t *testing.T) {
+	tests := []struct {
+		input       string
+		collection  string
+		description string
+	}{
+		{"tags:*", "tags", "star on repeated field"},
+		{"email:*", "email", "star on singular field"},
+		{"user.tags:*", "user.tags", "star with traversal"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.description, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			hasExpr, ok := program.Expression.(*ast.HasExpression)
+			if !ok {
+				t.Fatalf("expression not *ast.HasExpression. got=%T", program.Expression)
+			}
+
+			// Check collection (left side)
+			if hasExpr.Collection.String() != tt.collection {
+				t.Errorf("hasExpr.Collection wrong. expected='%s', got='%s'",
+					tt.collection, hasExpr.Collection.String())
+			}
+
+			// Check member is star identifier
+			ident, ok := hasExpr.Member.(*ast.Identifier)
+			if !ok {
+				t.Fatalf("hasExpr.Member not *ast.Identifier. got=%T", hasExpr.Member)
+			}
+
+			if ident.Value != "*" {
+				t.Errorf("ident.Value wrong. expected='*', got='%s'", ident.Value)
+			}
+		})
+	}
+}

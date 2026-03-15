@@ -297,6 +297,10 @@ func TestProtoValidator_TypeCompatibility_InvalidTypes(t *testing.T) {
 		{"float field with boolean literal", `score = true`},
 		{"double field with string literal", `rating = "4.5"`},
 		{"double field with boolean literal", `rating = false`},
+
+		// Star operator errors - bare star only valid with HAS (:), not comparisons (Cycle 7D)
+		{"bare star with equals", `name = *`},
+		{"bare star with not equals", `age != *`},
 	}
 
 	for _, tt := range tests {
@@ -668,10 +672,9 @@ func TestProtoValidator_RepeatedField_BasicHas(t *testing.T) {
 		{"repeated int has", `scores:100`, true, 0},
 		{"repeated int has no match", `scores:999`, true, 0}, // Valid syntax
 
-		// Star operator - presence check
-		// TODO: Parser doesn't support * as identifier yet - uncomment when fixed
-		// {"repeated string star", `tags:*`, true, 0},
-		// {"repeated int star", `scores:*`, true, 0},
+		// Star operator - presence check (Cycle 7D)
+		{"repeated string star", `tags:*`, true, 0},
+		{"repeated int star", `scores:*`, true, 0},
 	}
 
 	for _, tt := range tests {
@@ -773,8 +776,8 @@ func TestProtoValidator_RepeatedMessage_NestedHas(t *testing.T) {
 		{"3-level to repeated", `nested.leaf.leaf_tags:"critical"`, true, 0},
 		{"3-level to repeated urgent", `nested.leaf.leaf_tags:"urgent"`, true, 0},
 
-		// Star operator on repeated message (TODO: parser limitation)
-		// {"repeated message star", `emails:*`, true, 0},
+		// Star operator on repeated message (Cycle 7D)
+		{"repeated message star", `emails:*`, true, 0},
 	}
 
 	for _, tt := range tests {
@@ -804,9 +807,8 @@ func TestProtoValidator_SingularMessage_Has(t *testing.T) {
 		wantErr bool
 		errCnt  int
 	}{
-		// E1: Singular message presence check with star operator
-		// Note: Parser limitation - star operator not yet supported, will test when available
-		// {"message field present", `email:*`, false, 0},
+		// E1: Singular message presence check with star operator (Cycle 7D)
+		{"message field present", `email:*`, false, 0},
 
 		// E2: HAS operator with nested field in singular message
 		{"nested field has", `email.address:"test@example.com"`, false, 0},
@@ -816,9 +818,8 @@ func TestProtoValidator_SingularMessage_Has(t *testing.T) {
 		{"comparison on message field", `email.address = "test"`, false, 0}, // Comparison ✅
 		{"has on message field", `email.address:"test"`, false, 0},          // HAS ✅
 
-		// E4: Cannot use star operator on scalar fields
-		// Note: Parser limitation - star operator not yet supported, will test when available
-		// {"scalar star invalid", `name:*`, true, 1},  // ❌ name is string, not message
+		// E4: Cannot use star operator on scalar fields (Cycle 7D)
+		{"scalar star invalid", `name:*`, true, 1}, // ❌ name is string, not message
 
 		// E5: Invalid enum values in singular message nested field
 		{"invalid enum in message", `email.metadata.priority:"INVALID"`, true, 1},

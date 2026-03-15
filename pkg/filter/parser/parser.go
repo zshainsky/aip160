@@ -222,7 +222,7 @@ func (p *Parser) parseValue() ast.Expression {
 		return p.parseBoolean()
 	case lexer.NULL:
 		return p.parseNull()
-	case lexer.IDENTIFIER:
+	case lexer.IDENTIFIER, lexer.ASTERISK:
 		return p.parseIdentifier()
 	case lexer.LPAREN:
 		return p.parseGroupedExpression()

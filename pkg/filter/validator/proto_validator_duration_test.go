@@ -3,9 +3,9 @@ package validator
 import (
 	"testing"
 
+	"github.com/zshainsky/aip160/pkg/filter/lexer"
 	"github.com/zshainsky/aip160/pkg/filter/parser"
 	"github.com/zshainsky/aip160/pkg/filter/validator/testdata"
-	"github.com/zshainsky/aip160/pkg/filter/lexer"
 )
 
 // TestProtoValidator_Duration_Valid tests valid duration literal usage
@@ -111,9 +111,9 @@ func TestProtoValidator_Duration_TypeMismatch(t *testing.T) {
 			found := false
 			for _, err := range errors {
 				errMsg := err.Error()
-				if contains(errMsg, tt.expectedError) || 
-				   contains(errMsg, "duration literal cannot be used") ||
-				   contains(errMsg, "enum field") {
+				if contains(errMsg, tt.expectedError) ||
+					contains(errMsg, "duration literal cannot be used") ||
+					contains(errMsg, "enum field") {
 					found = true
 					break
 				}
@@ -171,7 +171,7 @@ func TestProtoValidator_Duration_MissingSuffix(t *testing.T) {
 			for _, err := range errors {
 				errMsg := err.Error()
 				if contains(errMsg, tt.expectedError) ||
-				   contains(errMsg, "requires duration literal") {
+					contains(errMsg, "requires duration literal") {
 					found = true
 					break
 				}
@@ -189,7 +189,7 @@ func TestProtoValidator_Duration_Negative(t *testing.T) {
 	pv := NewProtoValidator(msgDesc)
 
 	filter := "timeout = -5s"
-	
+
 	l := lexer.New(filter)
 	p := parser.New(l)
 	program := p.ParseProgram()
@@ -208,9 +208,9 @@ func TestProtoValidator_Duration_Negative(t *testing.T) {
 
 // Helper function
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && 
-		(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr || 
-		len(s) > len(substr)+1 && hasSubstring(s, substr)))
+	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) &&
+		(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
+			len(s) > len(substr)+1 && hasSubstring(s, substr)))
 }
 
 func hasSubstring(s, substr string) bool {

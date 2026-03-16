@@ -3,6 +3,7 @@ syntax = "proto3";
 package testdata;
 
 import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/zshainsky/aip160/pkg/filter/validator/testdata";
 
@@ -119,4 +120,8 @@ message TestProtoData {
   // Duration fields for AIP-160 duration literal validation (Phase 1: Duration Support)
   google.protobuf.Duration timeout = 30;
   google.protobuf.Duration delay = 31;
+  
+  // Timestamp fields for AIP-160 RFC-3339 validation (Phase 2: Timestamp Support)
+  google.protobuf.Timestamp created_at = 32;
+  google.protobuf.Timestamp updated_at = 33;
 }

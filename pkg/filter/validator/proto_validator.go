@@ -3,6 +3,7 @@ package validator
 import (
 	"fmt"
 	"math"
+	"regexp"
 	"strings"
 
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -15,6 +16,13 @@ import (
 const (
 	durationFullName  protoreflect.FullName = "google.protobuf.Duration"
 	timestampFullName protoreflect.FullName = "google.protobuf.Timestamp"
+)
+
+// RFC-3339 timestamp format pattern for AIP-160 Timestamp validation.
+// Format: YYYY-MM-DDTHH:MM:SS[.ffffff](Z|±HH:MM)
+// Per AIP-160: "Timestamps expect RFC-3339 format: 2012-04-21T11:30:00-04:00"
+var rfc3339Pattern = regexp.MustCompile(
+	`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$`,
 )
 
 // ProtoValidator validates filter ASTs against protobuf message descriptors.
@@ -329,8 +337,21 @@ func (pv *ProtoValidator) validateWellKnownKind(expr *ast.ComparisonExpression, 
 		return true, true // Is Duration kind and valid
 	}
 
-	// TODO Phase 2: Add Timestamp validation here
-	// if isTimestampField(fieldDesc) { ... }
+	// Case 3: Timestamp field validation (Phase 2)
+	if isTimestampField(fieldDesc) {
+		stringLit, ok := expr.Right.(*ast.StringLiteral)
+		if !ok {
+			pv.addError(errors, "google.protobuf.Timestamp field '%s' requires RFC-3339 string (e.g., \"2024-03-16T05:00:00Z\"), got %T",
+				pv.getFieldPath(expr.Left), expr.Right)
+			return true, false
+		}
+		if !isValidRFC3339(stringLit.Value) {
+			pv.addError(errors, "google.protobuf.Timestamp field '%s' requires RFC-3339 format, got \"%s\"",
+				pv.getFieldPath(expr.Left), stringLit.Value)
+			return true, false
+		}
+		return true, true // Is Timestamp kind and valid
+	}
 
 	// Other message types (not well-known types)
 	return false, false
@@ -930,6 +951,41 @@ func (pv *ProtoValidator) isNegativeDurationLiteral(node ast.Node) bool {
 	}
 	_, isDuration := unary.Right.(*ast.DurationLiteral)
 	return isDuration
+}
+
+// =============================================================================
+// Phase 2: Timestamp Support (AIP-160 RFC-3339)
+// =============================================================================
+
+// isTimestampField checks if a field is google.protobuf.Timestamp type.
+// Per AIP-160: "Timestamps expect RFC-3339 format: 2012-04-21T11:30:00-04:00"
+// Examples: created_at = "2024-03-16T05:00:00Z", updated_at = "2024-03-16T14:30:00+09:00"
+func isTimestampField(fieldDesc protoreflect.FieldDescriptor) bool {
+	if fieldDesc.Kind() != protoreflect.MessageKind {
+		return false
+	}
+	msgDesc := fieldDesc.Message()
+	if msgDesc == nil {
+		return false
+	}
+	return msgDesc.FullName() == timestampFullName
+}
+
+// isValidRFC3339 validates that a string conforms to RFC-3339 timestamp format.
+// Format: YYYY-MM-DDTHH:MM:SS[.ffffff](Z|±HH:MM)
+//
+// Valid examples:
+//   - "2024-03-16T05:00:00Z"              (UTC)
+//   - "2024-03-16T14:30:00+09:00"         (with timezone offset)
+//   - "2024-03-16T05:00:00.123456Z"       (with fractional seconds)
+//   - "2012-04-21T11:30:00-04:00"         (AIP-160 example)
+//
+// Invalid examples:
+//   - "2024-03-16T05:00:00"               (missing timezone)
+//   - "2024-03-16T05:00Z"                 (missing seconds)
+//   - "2024-03-16 05:00:00Z"              (space instead of T)
+func isValidRFC3339(value string) bool {
+	return rfc3339Pattern.MatchString(value)
 }
 
 // getNumericValue extracts a float64 value from an expression.

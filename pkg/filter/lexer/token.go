@@ -21,6 +21,7 @@ const (
 	IDENTIFIER TokenType = "IDENTIFIER" // field names: name, age, user_id
 	STRING     TokenType = "STRING"     // "hello", 'world'
 	NUMBER     TokenType = "NUMBER"     // 42, 3.14, 2.997e9
+	DURATION   TokenType = "DURATION"   // 20s, 1.2s (AIP-160 duration literals)
 
 	// Operators
 	EQUALS        TokenType = "="  // =

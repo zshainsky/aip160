@@ -142,6 +142,7 @@ Supports all proto scalar types:
 - **Integers:** int32, int64, uint32, uint64, sint32, sint64, fixed32, fixed64, sfixed32, sfixed64
 - **Floats:** float, double
 - **Enums:** Validated as string literals
+- **Duration:** google.protobuf.Duration (numeric + 's' suffix)
 
 ```go
 // Valid
@@ -188,6 +189,62 @@ points = -100            // ✗ Error: negative value for unsigned field
 
 **Note on float64 precision:** The parser uses float64 for all numbers. At extreme boundaries (e.g., MaxInt64), float64 precision limits may prevent detecting values exactly 1 over the limit. This is acceptable - we catch clearly invalid values (e.g., MaxInt32+1000).
 
+### ✅ Duration Literals
+
+Per AIP-160: "Durations expect a numeric representation followed by an 's' suffix"
+
+ProtoValidator validates `google.protobuf.Duration` fields with proper duration literal syntax:
+
+```protobuf
+import "google/protobuf/duration.proto";
+
+message Request {
+  google.protobuf.Duration timeout = 1;
+  google.protobuf.Duration delay = 2;
+}
+```
+
+**Valid Duration Syntax:**
+```go
+timeout = 20s          // ✓ Integer seconds
+timeout = 1.5s         // ✓ Fractional seconds (1500ms)
+timeout = 0.001s       // ✓ Small durations (1ms)
+delay = 300s           // ✓ Large durations (5 minutes)
+
+// Comparisons
+timeout > 10s          // ✓ Greater than 10 seconds
+timeout <= 60s         // ✓ Less than or equal to 1 minute
+delay != 0s            // ✓ Non-zero delay
+
+// Negative durations (valid per proto spec)
+timeout = -5s          // ✓ Negative duration
+```
+
+**Type Validation:**
+```go
+// Invalid: Missing 's' suffix
+timeout = 20           // ✗ Error: expects duration literal with 's' suffix
+
+// Invalid: Duration on non-duration field
+age = 20s              // ✗ Error: field 'age' is int32, not Duration
+
+// Invalid: Non-duration value on duration field
+timeout = "20 seconds" // ✗ Error: expects duration literal, got string
+timeout = 20           // ✗ Error: expects duration literal, got number
+```
+
+**AIP-160 Compliance:**
+- Syntax matches AIP-160 examples: `20s`, `1.2s`
+- Supports all comparison operators: `=`, `!=`, `<`, `>`, `<=`, `>=`
+- Type-safe: Duration literals only valid for `google.protobuf.Duration` fields
+- Bidirectional checking: Duration fields reject non-duration values, and non-duration fields reject duration literals
+
+**Implementation Details:**
+- Duration literals parsed at **lexer level** (number + 's' suffix → DURATION token)
+- Validator uses typed constant `durationFullName` to detect Duration fields
+- Full name comparison: `msgDesc.FullName() == "google.protobuf.Duration"`
+- See `parser_duration_test.go` (20 tests) and `proto_validator_duration_test.go` (28 tests)
+
 ### ✅ Enum Validation with Prefix Stripping
 
 ProtoValidator supports flexible enum matching:
@@ -224,6 +281,7 @@ Different field types support different operators:
 |-----------|-------------------|
 | Numeric (int32, int64, float, double) | `=`, `!=`, `<`, `>`, `<=`, `>=` |
 | String, bytes | `=`, `!=`, `<`, `>`, `<=`, `>=` |
+| Duration | `=`, `!=`, `<`, `>`, `<=`, `>=` |
 | Boolean | `=`, `!=` only |
 | Enum | `=`, `!=` only |
 | Repeated | `:` (HAS) only |
@@ -360,8 +418,9 @@ ProtoValidator
 
 ## Testing
 
-ProtoValidator is thoroughly tested with 217+ test cases covering:
+ProtoValidator is thoroughly tested with 265+ test cases covering:
 - All proto scalar types (17 types)
+- Duration literals (48 tests: parser + validator)
 - Enum validation (prefixed/non-prefixed)
 - Nested messages (3+ levels deep)
 - Operator restrictions

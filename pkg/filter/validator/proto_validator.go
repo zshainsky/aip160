@@ -260,76 +260,127 @@ func (pv *ProtoValidator) validateOperatorForField(operator string, fieldDesc pr
 
 // validateTypeCompatibility checks if the right operand type is compatible with the field type.
 // Returns false if validation fails (with error added), true to continue validation.
+//
+// Implementation uses a chain-of-responsibility pattern where each validator handles
+// a specific domain (enums, well-known types, special operators, generic types).
+// Each validator returns (handled, valid) to control the validation flow.
 func (pv *ProtoValidator) validateTypeCompatibility(expr *ast.ComparisonExpression, fieldDesc protoreflect.FieldDescriptor, errors *[]error) bool {
-	// For enum fields, must be string literal
-	if fieldDesc.Kind() == protoreflect.EnumKind {
-		if _, ok := expr.Right.(*ast.StringLiteral); !ok {
-			pv.addError(errors, "enum field '%s' requires string value (enum name), not %T",
-				pv.getFieldPath(expr.Left), expr.Right)
-			return false
-		}
-		return true // Type is correct, continue to value validation
+	// Chain of responsibility: each validator handles its domain
+	validators := []func(*ast.ComparisonExpression, protoreflect.FieldDescriptor, *[]error) (handled bool, valid bool){
+		pv.validateEnumFieldType,
+		pv.validateWellKnownType,
+		pv.validateSpecialOperators,
+		pv.validateGenericTypes,
 	}
 
-	// For all other fields, check proto kind compatibility
+	for _, validator := range validators {
+		if handled, valid := validator(expr, fieldDesc, errors); handled {
+			return valid
+		}
+	}
+
+	return true
+}
+
+// validateEnumFieldType checks that enum fields receive string literals.
+// Per AIP-160: "Field values for bounded data types e.g. enum provided in the
+// filter must be a valid value in the set"
+func (pv *ProtoValidator) validateEnumFieldType(expr *ast.ComparisonExpression, fieldDesc protoreflect.FieldDescriptor, errors *[]error) (handled bool, valid bool) {
+	if fieldDesc.Kind() != protoreflect.EnumKind {
+		return false, false // Not an enum field, not handled
+	}
+
+	if _, ok := expr.Right.(*ast.StringLiteral); !ok {
+		pv.addError(errors, "enum field '%s' requires string value (enum name), not %T",
+			pv.getFieldPath(expr.Left), expr.Right)
+		return true, false // Handled, but invalid
+	}
+
+	return true, true // Handled and valid
+}
+
+// validateWellKnownType handles google.protobuf.* well-known types.
+// Currently supports: Duration (Phase 1), Timestamp (TODO Phase 2)
+//
+// Bidirectional validation:
+// - Duration fields require Duration literals
+// - Non-Duration fields reject Duration literals
+func (pv *ProtoValidator) validateWellKnownType(expr *ast.ComparisonExpression, fieldDesc protoreflect.FieldDescriptor, errors *[]error) (handled bool, valid bool) {
+	isDurLiteral := isDurationLiteral(expr.Right) || pv.isNegativeDurationLiteral(expr.Right)
+
+	// Case 1: Non-message field with Duration literal -> reject
+	if fieldDesc.Kind() != protoreflect.MessageKind {
+		if isDurLiteral {
+			pv.addError(errors, "duration literal cannot be used on non-Duration field '%s' of type %s",
+				pv.getFieldPath(expr.Left), fieldDesc.Kind())
+			return true, false
+		}
+		return false, false // Not a well-known type
+	}
+
+	// Case 2: Duration field validation
+	if isDurationField(fieldDesc) {
+		if !isDurLiteral {
+			pv.addError(errors, "google.protobuf.Duration field '%s' requires duration literal (e.g., 20s, 1.2s), got %T",
+				pv.getFieldPath(expr.Left), expr.Right)
+			return true, false
+		}
+		return true, true // Duration field + Duration literal = valid
+	}
+
+	// TODO Phase 2: Add Timestamp validation here
+	// if isTimestampField(fieldDesc) { ... }
+
+	// Other message types (not well-known types)
+	return false, false
+}
+
+// validateSpecialOperators checks constraints on special operators and literals.
+// - Star operator (*) only valid with HAS (:)
+// - Negative literals rejected on unsigned fields
+func (pv *ProtoValidator) validateSpecialOperators(expr *ast.ComparisonExpression, fieldDesc protoreflect.FieldDescriptor, errors *[]error) (handled bool, valid bool) {
+	// Star operator restriction (Cycle 7D)
+	if isStarLiteral(expr.Right) {
+		pv.addError(errors, "star operator (*) only valid with HAS (:), not comparison (%s)", expr.Operator)
+		return true, false
+	}
+
+	// Negative literal on unsigned field (Cycle 7B)
+	if pv.isUnsignedKind(fieldDesc.Kind()) && pv.isNegativeLiteral(expr.Right) {
+		pv.addError(errors, "cannot assign negative value to unsigned field '%s' of type %s",
+			pv.getFieldPath(expr.Left), fieldDesc.Kind())
+		return true, false
+	}
+
+	return false, false // Not handled
+}
+
+// validateGenericTypes handles standard proto type compatibility checking.
+// Validates proto kind compatibility and numeric range constraints.
+func (pv *ProtoValidator) validateGenericTypes(expr *ast.ComparisonExpression, fieldDesc protoreflect.FieldDescriptor, errors *[]error) (handled bool, valid bool) {
 	leftKind, leftOk := pv.getExpressionKind(expr.Left)
 	rightKind, rightOk := pv.getExpressionKind(expr.Right)
 
-	// Phase 1: Duration type validation (AIP-160 Duration support)
-	// Check Duration field + Duration literal compatibility
-	// Duration fields (google.protobuf.Duration) require Duration literals (20s, 1.2s)
-	if fieldDesc.Kind() == protoreflect.MessageKind {
-		if isDurationField(fieldDesc) {
-			// Duration field requires Duration literal
-			if !isDurationLiteral(expr.Right) && !pv.isNegativeDurationLiteral(expr.Right) {
-				pv.addError(errors, "google.protobuf.Duration field '%s' requires duration literal (e.g., 20s, 1.2s), got %T",
-					pv.getFieldPath(expr.Left), expr.Right)
-				return false
-			}
-			return true // Duration field + Duration literal is valid
-		}
-		// Other message types - continue with normal validation
-	} else {
-		// Non-Duration field should not accept Duration literals
-		if isDurationLiteral(expr.Right) || pv.isNegativeDurationLiteral(expr.Right) {
-			pv.addError(errors, "duration literal cannot be used on non-Duration field '%s' of type %s",
-				pv.getFieldPath(expr.Left), fieldDesc.Kind())
-			return false
+	if !leftOk || !rightOk {
+		return true, true // Can't validate kinds, pass through
+	}
+
+	// Check proto kind compatibility (e.g., int32 field vs string literal)
+	if !pv.protoKindsCompatible(leftKind, rightKind) {
+		pv.addError(errors, "cannot compare %s field with %s value",
+			leftKind, rightKind)
+		return true, false
+	}
+
+	// Cycle 8A: Integer overflow validation
+	// Per AIP-160: values must "align to the type of the field"
+	if isIntegerKind(fieldDesc.Kind()) {
+		if num, ok := getNumericValue(expr.Right); ok {
+			pv.validateNumericRange(num, fieldDesc.Kind(), pv.getFieldPath(expr.Left), errors)
 		}
 	}
 
-	// Check if bare star is used in comparison (Cycle 7D)
-	// Per AIP-160: bare * is only valid with HAS (:), not comparison operators
-	// e.g. field = * not supported
-	if isStarLiteral(expr.Right) {
-		pv.addError(errors, "star operator (*) only valid with HAS (:), not comparison (%s)", expr.Operator)
-		return false
-	}
-
-	if leftOk && rightOk {
-		if !pv.protoKindsCompatible(leftKind, rightKind) {
-			pv.addError(errors, "cannot compare %s field with %s value",
-				leftKind, rightKind)
-			return false
-		}
-
-		// Check if negative literal is used on unsigned field (Cycle 7B)
-		if pv.isUnsignedKind(fieldDesc.Kind()) && pv.isNegativeLiteral(expr.Right) {
-			pv.addError(errors, "cannot assign negative value to unsigned field '%s' of type %s",
-				pv.getFieldPath(expr.Left), fieldDesc.Kind())
-			return false
-		}
-
-		// Cycle 8A: Validate integer overflow per AIP-160 "align to type" requirement
-		// Check numeric values are within valid range for integer types
-		if isIntegerKind(fieldDesc.Kind()) {
-			if num, ok := getNumericValue(expr.Right); ok {
-				pv.validateNumericRange(num, fieldDesc.Kind(), pv.getFieldPath(expr.Left), errors)
-			}
-		}
-	}
-
-	return true // Type compatibility validated
+	return true, true // Handled and valid
 }
 
 // validateEnumValue validates that the enum value exists in the enum definition.

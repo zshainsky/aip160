@@ -218,9 +218,9 @@ func (pv *ProtoValidator) validateComparison(expr *ast.ComparisonExpression, err
 		return // Operator validation failed, error already added
 	}
 
-	// Validate value type matches field type
-	if !pv.validateTypeCompatibility(expr, fieldDesc, errors) {
-		return // Type validation failed, error already added
+	// Validate value kind matches field kind
+	if !pv.validateKindCompatibility(expr, fieldDesc, errors) {
+		return // Kind validation failed, error already added
 	}
 
 	// For enum fields, validate the specific enum value exists
@@ -258,14 +258,14 @@ func (pv *ProtoValidator) validateOperatorForField(operator string, fieldDesc pr
 	return true // Operator is valid, continue validation
 }
 
-// validateTypeCompatibility checks if the right operand type is compatible with the field type.
+// validateKindCompatibility checks if the right operand kind is compatible with the field kind.
 // Returns false if validation fails (with error added), true to continue validation.
 //
 // Implementation uses a chain-of-responsibility pattern where each validator handles
 // a specific domain (enums, well-known types, special operators, generic types).
 // Each validator returns (isKind, isValid) where isKind indicates if the validator
 // applies to this field kind, and isValid indicates if the validation passed.
-func (pv *ProtoValidator) validateTypeCompatibility(expr *ast.ComparisonExpression, fieldDesc protoreflect.FieldDescriptor, errors *[]error) bool {
+func (pv *ProtoValidator) validateKindCompatibility(expr *ast.ComparisonExpression, fieldDesc protoreflect.FieldDescriptor, errors *[]error) bool {
 	// Chain of responsibility: each validator checks if it applies to this kind
 	validators := []func(*ast.ComparisonExpression, protoreflect.FieldDescriptor, *[]error) (isKind bool, isValid bool){
 		pv.validateEnumFieldKind,

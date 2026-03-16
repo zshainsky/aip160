@@ -10,6 +10,13 @@ import (
 	"github.com/zshainsky/aip160/pkg/filter/ast"
 )
 
+// Well-known protobuf type full names for AIP-160 validation.
+// These are the canonical names defined in google/protobuf/*.proto files.
+const (
+	durationFullName  protoreflect.FullName = "google.protobuf.Duration"
+	timestampFullName protoreflect.FullName = "google.protobuf.Timestamp"
+)
+
 // ProtoValidator validates filter ASTs against protobuf message descriptors.
 // It uses google.golang.org/protobuf/reflect/protoreflect for efficient
 // field resolution and native enum validation.
@@ -851,7 +858,7 @@ func isDurationField(fieldDesc protoreflect.FieldDescriptor) bool {
 	if msgDesc == nil {
 		return false
 	}
-	return msgDesc.FullName() == "google.protobuf.Duration"
+	return msgDesc.FullName() == durationFullName
 }
 
 // isDurationLiteral checks if an AST node is a Duration literal.

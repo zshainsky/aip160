@@ -263,49 +263,50 @@ func (pv *ProtoValidator) validateOperatorForField(operator string, fieldDesc pr
 //
 // Implementation uses a chain-of-responsibility pattern where each validator handles
 // a specific domain (enums, well-known types, special operators, generic types).
-// Each validator returns (handled, valid) to control the validation flow.
+// Each validator returns (isKind, isValid) where isKind indicates if the validator
+// applies to this field kind, and isValid indicates if the validation passed.
 func (pv *ProtoValidator) validateTypeCompatibility(expr *ast.ComparisonExpression, fieldDesc protoreflect.FieldDescriptor, errors *[]error) bool {
-	// Chain of responsibility: each validator handles its domain
-	validators := []func(*ast.ComparisonExpression, protoreflect.FieldDescriptor, *[]error) (handled bool, valid bool){
-		pv.validateEnumFieldType,
-		pv.validateWellKnownType,
+	// Chain of responsibility: each validator checks if it applies to this kind
+	validators := []func(*ast.ComparisonExpression, protoreflect.FieldDescriptor, *[]error) (isKind bool, isValid bool){
+		pv.validateEnumFieldKind,
+		pv.validateWellKnownKind,
 		pv.validateSpecialOperators,
-		pv.validateGenericTypes,
+		pv.validateGenericKinds,
 	}
 
 	for _, validator := range validators {
-		if handled, valid := validator(expr, fieldDesc, errors); handled {
-			return valid
+		if isKind, isValid := validator(expr, fieldDesc, errors); isKind {
+			return isValid
 		}
 	}
 
 	return true
 }
 
-// validateEnumFieldType checks that enum fields receive string literals.
+// validateEnumFieldKind checks that enum fields receive string literals.
 // Per AIP-160: "Field values for bounded data types e.g. enum provided in the
 // filter must be a valid value in the set"
-func (pv *ProtoValidator) validateEnumFieldType(expr *ast.ComparisonExpression, fieldDesc protoreflect.FieldDescriptor, errors *[]error) (handled bool, valid bool) {
+func (pv *ProtoValidator) validateEnumFieldKind(expr *ast.ComparisonExpression, fieldDesc protoreflect.FieldDescriptor, errors *[]error) (isKind bool, isValid bool) {
 	if fieldDesc.Kind() != protoreflect.EnumKind {
-		return false, false // Not an enum field, not handled
+		return false, false // Not enum kind
 	}
 
 	if _, ok := expr.Right.(*ast.StringLiteral); !ok {
 		pv.addError(errors, "enum field '%s' requires string value (enum name), not %T",
 			pv.getFieldPath(expr.Left), expr.Right)
-		return true, false // Handled, but invalid
+		return true, false // Is enum kind, but invalid
 	}
 
-	return true, true // Handled and valid
+	return true, true // Is enum kind and valid
 }
 
-// validateWellKnownType handles google.protobuf.* well-known types.
+// validateWellKnownKind handles google.protobuf.* well-known types.
 // Currently supports: Duration (Phase 1), Timestamp (TODO Phase 2)
 //
 // Bidirectional validation:
 // - Duration fields require Duration literals
 // - Non-Duration fields reject Duration literals
-func (pv *ProtoValidator) validateWellKnownType(expr *ast.ComparisonExpression, fieldDesc protoreflect.FieldDescriptor, errors *[]error) (handled bool, valid bool) {
+func (pv *ProtoValidator) validateWellKnownKind(expr *ast.ComparisonExpression, fieldDesc protoreflect.FieldDescriptor, errors *[]error) (isKind bool, isValid bool) {
 	isDurLiteral := isDurationLiteral(expr.Right) || pv.isNegativeDurationLiteral(expr.Right)
 
 	// Case 1: Non-message field with Duration literal -> reject
@@ -315,7 +316,7 @@ func (pv *ProtoValidator) validateWellKnownType(expr *ast.ComparisonExpression, 
 				pv.getFieldPath(expr.Left), fieldDesc.Kind())
 			return true, false
 		}
-		return false, false // Not a well-known type
+		return false, false // Not a well-known kind
 	}
 
 	// Case 2: Duration field validation
@@ -325,7 +326,7 @@ func (pv *ProtoValidator) validateWellKnownType(expr *ast.ComparisonExpression, 
 				pv.getFieldPath(expr.Left), expr.Right)
 			return true, false
 		}
-		return true, true // Duration field + Duration literal = valid
+		return true, true // Is Duration kind and valid
 	}
 
 	// TODO Phase 2: Add Timestamp validation here
@@ -338,7 +339,7 @@ func (pv *ProtoValidator) validateWellKnownType(expr *ast.ComparisonExpression, 
 // validateSpecialOperators checks constraints on special operators and literals.
 // - Star operator (*) only valid with HAS (:)
 // - Negative literals rejected on unsigned fields
-func (pv *ProtoValidator) validateSpecialOperators(expr *ast.ComparisonExpression, fieldDesc protoreflect.FieldDescriptor, errors *[]error) (handled bool, valid bool) {
+func (pv *ProtoValidator) validateSpecialOperators(expr *ast.ComparisonExpression, fieldDesc protoreflect.FieldDescriptor, errors *[]error) (isKind bool, isValid bool) {
 	// Star operator restriction (Cycle 7D)
 	if isStarLiteral(expr.Right) {
 		pv.addError(errors, "star operator (*) only valid with HAS (:), not comparison (%s)", expr.Operator)
@@ -352,12 +353,13 @@ func (pv *ProtoValidator) validateSpecialOperators(expr *ast.ComparisonExpressio
 		return true, false
 	}
 
-	return false, false // Not handled
+	return false, false // Not a special operator case
 }
 
-// validateGenericTypes handles standard proto type compatibility checking.
+// validateGenericKinds handles standard proto kind compatibility checking.
 // Validates proto kind compatibility and numeric range constraints.
-func (pv *ProtoValidator) validateGenericTypes(expr *ast.ComparisonExpression, fieldDesc protoreflect.FieldDescriptor, errors *[]error) (handled bool, valid bool) {
+// This is the catch-all validator that handles all remaining kinds.
+func (pv *ProtoValidator) validateGenericKinds(expr *ast.ComparisonExpression, fieldDesc protoreflect.FieldDescriptor, errors *[]error) (isKind bool, isValid bool) {
 	leftKind, leftOk := pv.getExpressionKind(expr.Left)
 	rightKind, rightOk := pv.getExpressionKind(expr.Right)
 
@@ -380,7 +382,7 @@ func (pv *ProtoValidator) validateGenericTypes(expr *ast.ComparisonExpression, f
 		}
 	}
 
-	return true, true // Handled and valid
+	return true, true // Is generic kind and valid
 }
 
 // validateEnumValue validates that the enum value exists in the enum definition.

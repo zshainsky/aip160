@@ -388,7 +388,7 @@ func (pv *ProtoValidator) validateGenericKinds(expr *ast.ComparisonExpression, f
 // validateEnumValue validates that the enum value exists in the enum definition.
 // Assumes operator and type have already been validated.
 func (pv *ProtoValidator) validateEnumValue(expr *ast.ComparisonExpression, fieldDesc protoreflect.FieldDescriptor, errors *[]error) {
-	// Right side is guaranteed to be string literal by validateTypeCompatibility
+	// Right side is guaranteed to be string literal by validateKindCompatibility
 	stringLit := expr.Right.(*ast.StringLiteral)
 
 	// Validate the enum value exists in the enum definition
@@ -518,7 +518,7 @@ func (pv *ProtoValidator) getExpressionKind(node ast.Node) (protoreflect.Kind, b
 		// Duration literals (20s, 1.2s) map to MessageKind because
 		// google.protobuf.Duration is a message type (not a scalar kind).
 		// Duration is defined as: message Duration { int64 seconds; int32 nanos; }
-		// Validation logic in validateTypeCompatibility handles Duration-specific matching.
+		// Validation logic in validateKindCompatibility handles Duration-specific matching.
 		return protoreflect.MessageKind, true
 	case *ast.UnaryExpression:
 		// Handle negative literals: -5, -3.14, -5s (Cycle 7B + Duration)

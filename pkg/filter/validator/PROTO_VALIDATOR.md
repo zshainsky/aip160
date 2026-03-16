@@ -496,9 +496,10 @@ ProtoValidator
 
 ## Testing
 
-ProtoValidator is thoroughly tested with 265+ test cases covering:
+ProtoValidator is thoroughly tested with 292+ test cases covering:
 - All proto scalar types (17 types)
 - Duration literals (48 tests: parser + validator)
+- Timestamp RFC-3339 validation (27 tests)
 - Enum validation (prefixed/non-prefixed)
 - Nested messages (3+ levels deep)
 - Operator restrictions
@@ -506,7 +507,7 @@ ProtoValidator is thoroughly tested with 265+ test cases covering:
 - Logical operator combinations
 - Error message accuracy
 
-Test coverage: **83.1%** of statements.
+Test coverage: **86.4%** of statements.
 
 ## Examples
 

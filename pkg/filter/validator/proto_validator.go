@@ -19,7 +19,8 @@ const (
 )
 
 // RFC-3339 timestamp format pattern for AIP-160 Timestamp validation.
-// Format: YYYY-MM-DDTHH:MM:SS[.ffffff](Z|±HH:MM)
+// Format: YYYY-MM-DDTHH:MM:SS[.fraction](Z|±HH:MM)
+// Per RFC-3339: time-secfrac = "." 1*DIGIT (one or more digits, variable precision)
 // Per AIP-160: "Timestamps expect RFC-3339 format: 2012-04-21T11:30:00-04:00"
 var rfc3339Pattern = regexp.MustCompile(
 	`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$`,

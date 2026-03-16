@@ -16,7 +16,8 @@ import (
 
 // TestProtoValidator_Timestamp_Valid tests valid RFC-3339 timestamp literals.
 // Per AIP-160: "Timestamps expect RFC-3339 format"
-// Format: YYYY-MM-DDTHH:MM:SS[.ffffff](Z|±HH:MM)
+// Format: YYYY-MM-DDTHH:MM:SS[.fraction](Z|±HH:MM)
+// Per RFC-3339: time-secfrac = "." 1*DIGIT (variable precision, 1+ digits)
 func TestProtoValidator_Timestamp_Valid(t *testing.T) {
 	msgDesc := (&testdata.TestProtoData{}).ProtoReflect().Descriptor()
 	pv := NewProtoValidator(msgDesc)

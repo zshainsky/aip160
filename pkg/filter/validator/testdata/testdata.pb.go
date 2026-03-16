@@ -9,6 +9,7 @@ package testdata
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	durationpb "google.golang.org/protobuf/types/known/durationpb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -513,11 +514,14 @@ type TestProtoData struct {
 	// All scalar types also available at leaf for deep traversal validation
 	Nested *NestedData `protobuf:"bytes,20,opt,name=nested,proto3" json:"nested,omitempty"`
 	// Repeated fields for HAS operator validation (TDD Cycle 6)
-	Tags          []string     `protobuf:"bytes,21,rep,name=tags,proto3" json:"tags,omitempty"`
-	Scores        []int32      `protobuf:"varint,22,rep,packed,name=scores,proto3" json:"scores,omitempty"`
-	Statuses      []TaskStatus `protobuf:"varint,23,rep,packed,name=statuses,proto3,enum=testdata.TaskStatus" json:"statuses,omitempty"` // Plural form for enum testing
-	Email         *Email       `protobuf:"bytes,24,opt,name=email,proto3" json:"email,omitempty"`                                        // Singular form for message presence HAS testing
-	Emails        []*Email     `protobuf:"bytes,25,rep,name=emails,proto3" json:"emails,omitempty"`                                      // Plural form for nested message HAS testing
+	Tags     []string     `protobuf:"bytes,21,rep,name=tags,proto3" json:"tags,omitempty"`
+	Scores   []int32      `protobuf:"varint,22,rep,packed,name=scores,proto3" json:"scores,omitempty"`
+	Statuses []TaskStatus `protobuf:"varint,23,rep,packed,name=statuses,proto3,enum=testdata.TaskStatus" json:"statuses,omitempty"` // Plural form for enum testing
+	Email    *Email       `protobuf:"bytes,24,opt,name=email,proto3" json:"email,omitempty"`                                        // Singular form for message presence HAS testing
+	Emails   []*Email     `protobuf:"bytes,25,rep,name=emails,proto3" json:"emails,omitempty"`                                      // Plural form for nested message HAS testing
+	// Duration fields for AIP-160 duration literal validation (Phase 1: Duration Support)
+	Timeout       *durationpb.Duration `protobuf:"bytes,30,opt,name=timeout,proto3" json:"timeout,omitempty"`
+	Delay         *durationpb.Duration `protobuf:"bytes,31,opt,name=delay,proto3" json:"delay,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -713,11 +717,25 @@ func (x *TestProtoData) GetEmails() []*Email {
 	return nil
 }
 
+func (x *TestProtoData) GetTimeout() *durationpb.Duration {
+	if x != nil {
+		return x.Timeout
+	}
+	return nil
+}
+
+func (x *TestProtoData) GetDelay() *durationpb.Duration {
+	if x != nil {
+		return x.Delay
+	}
+	return nil
+}
+
 var File_pkg_filter_validator_testdata_testdata_proto protoreflect.FileDescriptor
 
 const file_pkg_filter_validator_testdata_testdata_proto_rawDesc = "" +
 	"\n" +
-	",pkg/filter/validator/testdata/testdata.proto\x12\btestdata\"\xa1\x04\n" +
+	",pkg/filter/validator/testdata/testdata.proto\x12\btestdata\x1a\x1egoogle/protobuf/duration.proto\"\xa1\x04\n" +
 	"\bLeafData\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x12\x12\n" +
 	"\x04data\x18\x02 \x01(\fR\x04data\x12\x12\n" +
@@ -749,7 +767,7 @@ const file_pkg_filter_validator_testdata_testdata_proto_rawDesc = "" +
 	"NestedData\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\aenabled\x18\x02 \x01(\bR\aenabled\x12&\n" +
-	"\x04leaf\x18\x03 \x01(\v2\x12.testdata.LeafDataR\x04leaf\"\xee\x05\n" +
+	"\x04leaf\x18\x03 \x01(\v2\x12.testdata.LeafDataR\x04leaf\"\xd4\x06\n" +
 	"\rTestProtoData\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
 	"\x03age\x18\x02 \x01(\x05R\x03age\x12\x16\n" +
@@ -776,7 +794,9 @@ const file_pkg_filter_validator_testdata_testdata_proto_rawDesc = "" +
 	"\x06scores\x18\x16 \x03(\x05R\x06scores\x120\n" +
 	"\bstatuses\x18\x17 \x03(\x0e2\x14.testdata.TaskStatusR\bstatuses\x12%\n" +
 	"\x05email\x18\x18 \x01(\v2\x0f.testdata.EmailR\x05email\x12'\n" +
-	"\x06emails\x18\x19 \x03(\v2\x0f.testdata.EmailR\x06emails*v\n" +
+	"\x06emails\x18\x19 \x03(\v2\x0f.testdata.EmailR\x06emails\x123\n" +
+	"\atimeout\x18\x1e \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12/\n" +
+	"\x05delay\x18\x1f \x01(\v2\x19.google.protobuf.DurationR\x05delay*v\n" +
 	"\n" +
 	"TaskStatus\x12\x1b\n" +
 	"\x17TASK_STATUS_UNSPECIFIED\x10\x00\x12\x16\n" +
@@ -806,13 +826,14 @@ func file_pkg_filter_validator_testdata_testdata_proto_rawDescGZIP() []byte {
 var file_pkg_filter_validator_testdata_testdata_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_pkg_filter_validator_testdata_testdata_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_pkg_filter_validator_testdata_testdata_proto_goTypes = []any{
-	(TaskStatus)(0),       // 0: testdata.TaskStatus
-	(TaskResult)(0),       // 1: testdata.TaskResult
-	(*LeafData)(nil),      // 2: testdata.LeafData
-	(*Email)(nil),         // 3: testdata.Email
-	(*EmailMetadata)(nil), // 4: testdata.EmailMetadata
-	(*NestedData)(nil),    // 5: testdata.NestedData
-	(*TestProtoData)(nil), // 6: testdata.TestProtoData
+	(TaskStatus)(0),             // 0: testdata.TaskStatus
+	(TaskResult)(0),             // 1: testdata.TaskResult
+	(*LeafData)(nil),            // 2: testdata.LeafData
+	(*Email)(nil),               // 3: testdata.Email
+	(*EmailMetadata)(nil),       // 4: testdata.EmailMetadata
+	(*NestedData)(nil),          // 5: testdata.NestedData
+	(*TestProtoData)(nil),       // 6: testdata.TestProtoData
+	(*durationpb.Duration)(nil), // 7: google.protobuf.Duration
 }
 var file_pkg_filter_validator_testdata_testdata_proto_depIdxs = []int32{
 	0,  // 0: testdata.LeafData.status:type_name -> testdata.TaskStatus
@@ -825,11 +846,13 @@ var file_pkg_filter_validator_testdata_testdata_proto_depIdxs = []int32{
 	0,  // 7: testdata.TestProtoData.statuses:type_name -> testdata.TaskStatus
 	3,  // 8: testdata.TestProtoData.email:type_name -> testdata.Email
 	3,  // 9: testdata.TestProtoData.emails:type_name -> testdata.Email
-	10, // [10:10] is the sub-list for method output_type
-	10, // [10:10] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	7,  // 10: testdata.TestProtoData.timeout:type_name -> google.protobuf.Duration
+	7,  // 11: testdata.TestProtoData.delay:type_name -> google.protobuf.Duration
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_pkg_filter_validator_testdata_testdata_proto_init() }

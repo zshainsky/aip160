@@ -208,7 +208,7 @@ func (p *Parser) isComparisonOperator(t lexer.TokenType) bool {
 }
 
 // parseValue dispatches to the appropriate parser based on token type
-// Grammar: value = function_call | field | string | number | boolean | null | "(", expression, ")" | "-", number ;
+// Grammar: value = function_call | field | string | number | duration | boolean | null | "(", expression, ")" | "-", number ;
 func (p *Parser) parseValue() ast.Expression {
 	// (Task 2): Implement minimal dispatcher
 	// Start with just STRING case to get first test passing:
@@ -218,6 +218,8 @@ func (p *Parser) parseValue() ast.Expression {
 	// (Task 3): Add remaining literal cases
 	case lexer.NUMBER:
 		return p.parseNumber()
+	case lexer.DURATION:
+		return p.parseDuration()
 	case lexer.TRUE, lexer.FALSE:
 		return p.parseBoolean()
 	case lexer.NULL:
@@ -268,6 +270,30 @@ func (p *Parser) parseNumber() ast.Expression {
 	// Call nextToken() to advance
 	p.nextToken()
 	// Return the NumberLiteral
+	return lit
+}
+
+// parseDuration parses a duration literal per AIP-160
+// AIP-160 specifies: "Durations expect a numeric representation followed by an 's' suffix"
+// Examples: 20s, 1.2s, 0.5s
+func (p *Parser) parseDuration() ast.Expression {
+	lit := &ast.DurationLiteral{Token: p.currentToken}
+
+	// Extract numeric part (remove 's' suffix)
+	// Token.Literal includes suffix: "20s" -> need to parse "20"
+	numStr := strings.TrimSuffix(p.currentToken.Literal, "s")
+	
+	val, err := strconv.ParseFloat(numStr, 64)
+	if err != nil {
+		msg := fmt.Sprintf("could not parse %q as duration", p.currentToken.Literal)
+		p.errors = append(p.errors, msg)
+		return nil
+	}
+
+	lit.Value = val
+	lit.Unit = "s" // Always "s" for seconds per AIP-160
+	
+	p.nextToken()
 	return lit
 }
 

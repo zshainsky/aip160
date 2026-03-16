@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package testdata;
 
+import "google/protobuf/duration.proto";
+
 option go_package = "github.com/zshainsky/aip160/pkg/filter/validator/testdata";
 
 // TaskStatus demonstrates enum with multi-word prefix (TASK_STATUS_*).
@@ -113,4 +115,8 @@ message TestProtoData {
   repeated TaskStatus statuses = 23;  // Plural form for enum testing
   Email email = 24;                   // Singular form for message presence HAS testing
   repeated Email emails = 25;         // Plural form for nested message HAS testing
+  
+  // Duration fields for AIP-160 duration literal validation (Phase 1: Duration Support)
+  google.protobuf.Duration timeout = 30;
+  google.protobuf.Duration delay = 31;
 }

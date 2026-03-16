@@ -113,6 +113,21 @@ type NullLiteral struct {
 }
 
 func (n *NullLiteral) expressionNode()      {}
+
+// DurationLiteral represents a duration value per AIP-160.
+// AIP-160 specifies: "Durations expect a numeric representation followed by an 's' suffix"
+// Examples: 20s (20 seconds), 1.2s (1.2 seconds), 0.5s (500 milliseconds)
+type DurationLiteral struct {
+	Token lexer.Token // The token containing the duration
+	Value float64     // The numeric value (in seconds)
+	Unit  string      // The unit suffix (always "s" for seconds per AIP-160)
+}
+
+func (d *DurationLiteral) expressionNode()      {}
+func (d *DurationLiteral) TokenLiteral() string { return d.Token.Literal }
+func (d *DurationLiteral) String() string {
+	return fmt.Sprintf("%gs", d.Value)
+}
 func (n *NullLiteral) TokenLiteral() string { return n.Token.Literal }
 
 // TODO: Implement String() method

@@ -268,6 +268,29 @@ func (pv *ProtoValidator) validateTypeCompatibility(expr *ast.ComparisonExpressi
 	leftKind, leftOk := pv.getExpressionKind(expr.Left)
 	rightKind, rightOk := pv.getExpressionKind(expr.Right)
 
+	// Phase 1: Duration type validation (AIP-160 Duration support)
+	// Check Duration field + Duration literal compatibility
+	// Duration fields (google.protobuf.Duration) require Duration literals (20s, 1.2s)
+	if fieldDesc.Kind() == protoreflect.MessageKind {
+		if isDurationField(fieldDesc) {
+			// Duration field requires Duration literal
+			if !isDurationLiteral(expr.Right) && !pv.isNegativeDurationLiteral(expr.Right) {
+				pv.addError(errors, "google.protobuf.Duration field '%s' requires duration literal (e.g., 20s, 1.2s), got %T",
+					pv.getFieldPath(expr.Left), expr.Right)
+				return false
+			}
+			return true // Duration field + Duration literal is valid
+		}
+		// Other message types - continue with normal validation
+	} else {
+		// Non-Duration field should not accept Duration literals
+		if isDurationLiteral(expr.Right) || pv.isNegativeDurationLiteral(expr.Right) {
+			pv.addError(errors, "duration literal cannot be used on non-Duration field '%s' of type %s",
+				pv.getFieldPath(expr.Left), fieldDesc.Kind())
+			return false
+		}
+	}
+
 	// Check if bare star is used in comparison (Cycle 7D)
 	// Per AIP-160: bare * is only valid with HAS (:), not comparison operators
 	// e.g. field = * not supported
@@ -431,8 +454,13 @@ func (pv *ProtoValidator) getExpressionKind(node ast.Node) (protoreflect.Kind, b
 		return protoreflect.Int64Kind, true
 	case *ast.BooleanLiteral:
 		return protoreflect.BoolKind, true
+	case *ast.DurationLiteral:
+		// Duration literals (20s, 1.2s) are represented as a special kind
+		// We use MessageKind to match google.protobuf.Duration fields
+		// Validation logic in protoKindsCompatible handles Duration-specific matching
+		return protoreflect.MessageKind, true
 	case *ast.UnaryExpression:
-		// Handle negative literals: -5, -3.14 (Cycle 7B)
+		// Handle negative literals: -5, -3.14, -5s (Cycle 7B + Duration)
 		// Per AIP-160, - operator is used for both negation (NOT) and negative literals
 		if n.Operator == "-" {
 			// Recursively get the kind of the right operand
@@ -805,6 +833,42 @@ func isIntegerKind(kind protoreflect.Kind) bool {
 		kind == protoreflect.Fixed64Kind ||
 		kind == protoreflect.Sfixed32Kind ||
 		kind == protoreflect.Sfixed64Kind
+}
+
+// =============================================================================
+// Phase 1: Duration Support (AIP-160 Duration Literals)
+// =============================================================================
+
+// isDurationField checks if a field is google.protobuf.Duration type.
+// Per AIP-160: "Durations expect a numeric representation followed by an 's' suffix"
+// Examples: timeout = 20s, delay = 1.2s
+func isDurationField(fieldDesc protoreflect.FieldDescriptor) bool {
+	if fieldDesc.Kind() != protoreflect.MessageKind {
+		return false
+	}
+	msgDesc := fieldDesc.Message()
+	if msgDesc == nil {
+		return false
+	}
+	return msgDesc.FullName() == "google.protobuf.Duration"
+}
+
+// isDurationLiteral checks if an AST node is a Duration literal.
+func isDurationLiteral(node ast.Node) bool {
+	_, ok := node.(*ast.DurationLiteral)
+	return ok
+}
+
+// isNegativeDurationLiteral checks if an expression is a negative duration literal.
+// Detects UnaryExpression with "-" operator wrapping a DurationLiteral.
+// Examples: -5s, -1.2s
+func (pv *ProtoValidator) isNegativeDurationLiteral(node ast.Node) bool {
+	unary, ok := node.(*ast.UnaryExpression)
+	if !ok || unary.Operator != "-" {
+		return false
+	}
+	_, isDuration := unary.Right.(*ast.DurationLiteral)
+	return isDuration
 }
 
 // getNumericValue extracts a float64 value from an expression.

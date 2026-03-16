@@ -455,9 +455,10 @@ func (pv *ProtoValidator) getExpressionKind(node ast.Node) (protoreflect.Kind, b
 	case *ast.BooleanLiteral:
 		return protoreflect.BoolKind, true
 	case *ast.DurationLiteral:
-		// Duration literals (20s, 1.2s) are represented as a special kind
-		// We use MessageKind to match google.protobuf.Duration fields
-		// Validation logic in protoKindsCompatible handles Duration-specific matching
+		// Duration literals (20s, 1.2s) map to MessageKind because
+		// google.protobuf.Duration is a message type (not a scalar kind).
+		// Duration is defined as: message Duration { int64 seconds; int32 nanos; }
+		// Validation logic in validateTypeCompatibility handles Duration-specific matching.
 		return protoreflect.MessageKind, true
 	case *ast.UnaryExpression:
 		// Handle negative literals: -5, -3.14, -5s (Cycle 7B + Duration)

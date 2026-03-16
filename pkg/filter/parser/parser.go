@@ -208,7 +208,9 @@ func (p *Parser) isComparisonOperator(t lexer.TokenType) bool {
 }
 
 // parseValue dispatches to the appropriate parser based on token type
-// Grammar: value = function_call | field | string | number | duration | boolean | null | "(", expression, ")" | "-", number ;
+// Grammar: value = TEXT | STRING (per AIP-160 EBNF)
+// Note: Duration (20s) is lexically recognized but grammatically treated as TEXT/value
+// Implementation handles: function_call | field | string | number | duration | boolean | null | "(", expression, ")" | "-", number
 func (p *Parser) parseValue() ast.Expression {
 	// (Task 2): Implement minimal dispatcher
 	// Start with just STRING case to get first test passing:

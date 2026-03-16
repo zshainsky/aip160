@@ -143,6 +143,7 @@ Supports all proto scalar types:
 - **Floats:** float, double
 - **Enums:** Validated as string literals
 - **Duration:** google.protobuf.Duration (numeric + 's' suffix)
+- **Timestamp:** google.protobuf.Timestamp (RFC-3339 string format)
 
 ```go
 // Valid
@@ -245,6 +246,82 @@ timeout = 20           // ✗ Error: expects duration literal, got number
 - Full name comparison: `msgDesc.FullName() == "google.protobuf.Duration"`
 - See `parser_duration_test.go` (20 tests) and `proto_validator_duration_test.go` (28 tests)
 
+### ✅ Timestamp Literals (RFC-3339)
+
+Per AIP-160: "Timestamps expect RFC-3339 format"
+
+ProtoValidator validates `google.protobuf.Timestamp` fields with RFC-3339 timestamp format:
+
+```protobuf
+import "google/protobuf/timestamp.proto";
+
+message Event {
+  google.protobuf.Timestamp created_at = 1;
+  google.protobuf.Timestamp updated_at = 2;
+}
+```
+
+**Valid Timestamp Syntax:**
+```go
+// Format: YYYY-MM-DDTHH:MM:SS[.fraction](Z|±HH:MM)
+created_at = "2024-03-16T05:00:00Z"              // ✓ UTC (Zulu time)
+created_at = "2024-03-16T14:30:00+09:00"         // ✓ With timezone offset
+created_at = "2012-04-21T11:30:00-04:00"         // ✓ AIP-160 example
+created_at = "2024-03-16T05:00:00.123Z"          // ✓ Milliseconds (3 digits)
+created_at = "2024-03-16T05:00:00.123456Z"       // ✓ Microseconds (6 digits)
+created_at = "2024-03-16T05:00:00.123456789Z"    // ✓ Nanoseconds (9 digits)
+
+// Comparisons
+created_at > "2024-01-01T00:00:00Z"              // ✓ After date
+created_at <= "2024-12-31T23:59:59Z"             // ✓ Before or at date
+updated_at != "2024-03-16T05:00:00Z"             // ✓ Not equal
+
+// NOT operator variants
+NOT created_at = "2024-03-16T05:00:00Z"          // ✓ NOT keyword
+-created_at = "2024-03-16T05:00:00Z"             // ✓ Minus operator
+```
+
+**RFC-3339 Requirements:**
+- **Date separator:** `-` (hyphen)
+- **Date-time separator:** `T` (uppercase required)
+- **Time separator:** `:` (colon)
+- **Seconds:** Required (cannot omit)
+- **Fractional seconds:** Optional, variable precision (1+ digits per RFC-3339)
+  - Common precisions: 3 (ms), 6 (μs), 9 (ns)
+  - RFC-3339 spec: `time-secfrac = "." 1*DIGIT` (any number of digits)
+- **Timezone:** Required - either `Z` (UTC) or `±HH:MM` offset
+
+**Type Validation:**
+```go
+// Invalid: Wrong timestamp format
+created_at = "2024-03-16T05:00:00"               // ✗ Missing timezone
+created_at = "2024-03-16T05:00Z"                 // ✗ Missing seconds
+created_at = "2024-03-16 05:00:00Z"              // ✗ Space instead of T
+created_at = "2024/03/16T05:00:00Z"              // ✗ Wrong date separator
+
+// Invalid: Timestamp on non-timestamp field
+name = "2024-03-16T05:00:00Z"                    // ✗ Field 'name' is string, not Timestamp
+
+// Invalid: Non-timestamp value on timestamp field
+created_at = 1234567890                          // ✗ Expects RFC-3339 string, got number
+created_at = true                                // ✗ Expects RFC-3339 string, got bool
+created_at = "not a timestamp"                   // ✗ Invalid RFC-3339 format
+```
+
+**AIP-160 Compliance:**
+- Format matches AIP-160 requirement: RFC-3339
+- Example from AIP-160: `2012-04-21T11:30:00-04:00` ✓
+- Supports all comparison operators: `=`, `!=`, `<`, `>`, `<=`, `>=`
+- Type-safe: RFC-3339 strings only valid for `google.protobuf.Timestamp` fields
+- Bidirectional checking: Timestamp fields reject non-RFC-3339 values, and non-timestamp fields reject RFC-3339 timestamps
+
+**Implementation Details:**
+- Timestamp validation at **validator level** (uses existing STRING token)
+- Regex pattern validates RFC-3339 format: `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$`
+- Validator uses typed constant `timestampFullName` to detect Timestamp fields
+- Full name comparison: `msgDesc.FullName() == "google.protobuf.Timestamp"`
+- See `proto_validator_timestamp_test.go` (27 tests)
+
 ### ✅ Enum Validation with Prefix Stripping
 
 ProtoValidator supports flexible enum matching:
@@ -282,6 +359,7 @@ Different field types support different operators:
 | Numeric (int32, int64, float, double) | `=`, `!=`, `<`, `>`, `<=`, `>=` |
 | String, bytes | `=`, `!=`, `<`, `>`, `<=`, `>=` |
 | Duration | `=`, `!=`, `<`, `>`, `<=`, `>=` |
+| Timestamp | `=`, `!=`, `<`, `>`, `<=`, `>=` |
 | Boolean | `=`, `!=` only |
 | Enum | `=`, `!=` only |
 | Repeated | `:` (HAS) only |
@@ -418,9 +496,10 @@ ProtoValidator
 
 ## Testing
 
-ProtoValidator is thoroughly tested with 265+ test cases covering:
+ProtoValidator is thoroughly tested with 292+ test cases covering:
 - All proto scalar types (17 types)
 - Duration literals (48 tests: parser + validator)
+- Timestamp RFC-3339 validation (27 tests)
 - Enum validation (prefixed/non-prefixed)
 - Nested messages (3+ levels deep)
 - Operator restrictions
@@ -428,7 +507,7 @@ ProtoValidator is thoroughly tested with 265+ test cases covering:
 - Logical operator combinations
 - Error message accuracy
 
-Test coverage: **83.1%** of statements.
+Test coverage: **86.4%** of statements.
 
 ## Examples
 

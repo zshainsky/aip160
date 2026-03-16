@@ -973,12 +973,16 @@ func isTimestampField(fieldDesc protoreflect.FieldDescriptor) bool {
 }
 
 // isValidRFC3339 validates that a string conforms to RFC-3339 timestamp format.
-// Format: YYYY-MM-DDTHH:MM:SS[.ffffff](Z|±HH:MM)
+// Format: YYYY-MM-DDTHH:MM:SS[.fraction](Z|±HH:MM)
+// Per RFC-3339: time-secfrac = "." 1*DIGIT (one or more digits, variable precision)
 //
 // Valid examples:
-//   - "2024-03-16T05:00:00Z"              (UTC)
+//   - "2024-03-16T05:00:00Z"              (UTC, no fractional seconds)
 //   - "2024-03-16T14:30:00+09:00"         (with timezone offset)
-//   - "2024-03-16T05:00:00.123456Z"       (with fractional seconds)
+//   - "2024-03-16T05:00:00.1Z"            (1 digit)
+//   - "2024-03-16T05:00:00.123Z"          (milliseconds, 3 digits)
+//   - "2024-03-16T05:00:00.123456Z"       (microseconds, 6 digits)
+//   - "2024-03-16T05:00:00.123456789Z"    (nanoseconds, 9 digits)
 //   - "2012-04-21T11:30:00-04:00"         (AIP-160 example)
 //
 // Invalid examples:

@@ -25,6 +25,12 @@ enum TaskResult {
   PENDING = 3;
 }
 
+// Address is a simple message for testing map<string, Message> traversal
+message Address {
+  string city = 1;
+  string zip = 2;
+}
+
 // LeafData contains all scalar types at the deepest nesting level.
 // Allows testing traversal validation for all field types at depth.
 message LeafData {
@@ -136,4 +142,7 @@ message TestProtoData {
   // Numeric key maps (less common but valid)
   map<int32, string> id_names = 45;     // int32 → String
   map<int64, int32> id_counts = 46;     // int64 → int32
+  
+  // Map with message values (for testing traversal into map values)
+  map<string, Address> locations = 47;  // String → Message
 }

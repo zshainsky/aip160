@@ -715,13 +715,22 @@ func (pv *ProtoValidator) validateTraversal(expr *ast.TraversalExpression, error
 		// Example: labels.env accesses the value for key "env"
 		
 		// Check if this is a nested traversal (trying to go deeper than map key access)
-		// labels.env: expr.Left is Identifier(labels) → OK
-		// labels.env.nested: expr.Left is TraversalExpression(labels, env) → ERROR
+		// labels.env: expr.Left is Identifier(labels) → OK, direct map key access
+		// labels.env.nested: expr.Left is TraversalExpression(labels, env) → depends on value type
 		if _, isTraversal := expr.Left.(*ast.TraversalExpression); isTraversal {
 			// We're trying to traverse through the result of a map access
-			// Example: labels.env resolved to the map, now trying to do .nested on it
+			// This is OK if map value is a message (can traverse into it)
+			// This is ERROR if map value is a scalar (can't traverse into scalar)
 			mapValueKind := leftField.MapValue().Kind()
-			pv.addError(errors, "cannot traverse into map value of type %s", mapValueKind.String())
+			if mapValueKind != protoreflect.MessageKind {
+				pv.addError(errors, "cannot traverse into map value of type %s", mapValueKind.String())
+				return
+			}
+			
+			// Map value is a message - allow traversal into it
+			// Get the message descriptor for the map's value type and continue
+			nestedDesc := leftField.MapValue().Message()
+			pv.validateNodeWithDescriptor(expr.Right, nestedDesc, errors)
 			return
 		}
 		
@@ -767,17 +776,24 @@ func (pv *ProtoValidator) resolveFieldDescriptor(node ast.Node, msgDesc protoref
 		if leftField.IsMap() {
 			// Two cases:
 			// 1. n.Left is an Identifier: "labels.env" → OK, this is map key access
-			// 2. n.Left is a TraversalExpression: "labels.env.nested" → ERROR, can't traverse into map value
+			// 2. n.Left is a TraversalExpression: "labels.env.nested" → depends on value type
 			
 			if _, isIdentifier := n.Left.(*ast.Identifier); isIdentifier {
 				// Case 1: labels.env → return map field for validateMapKind to handle
 				return leftField, msgDesc
 			} else {
-				// Case 2: labels.env.nested → the recursive resolution returned a map,
-				// meaning we're trying to traverse through a map's value (invalid!)
+				// Case 2: labels.env.nested → trying to traverse through a map's value
 				mapValueKind := leftField.MapValue().Kind()
-				pv.addError(errors, "cannot traverse into map value of type %s", mapValueKind.String())
-				return nil, nil
+				if mapValueKind != protoreflect.MessageKind {
+					// Can't traverse into scalar map values
+					pv.addError(errors, "cannot traverse into map value of type %s", mapValueKind.String())
+					return nil, nil
+				}
+				
+				// Map value is a message - allow traversal
+				// Get the nested message descriptor and continue resolution
+				nestedDesc := leftField.MapValue().Message()
+				return pv.resolveFieldDescriptor(n.Right, nestedDesc, errors)
 			}
 		}
 
@@ -957,9 +973,9 @@ func (pv *ProtoValidator) validateHas(expr *ast.HasExpression, errors *[]error) 
 		return
 	}
 
-	// For simple identifiers (not traversals), field must be repeated
+	// For simple identifiers (not traversals), field must be repeated or a map
 	// UNLESS it's a star operator for presence check (Cycle 7D)
-	if !fieldDesc.IsList() {
+	if !fieldDesc.IsList() && !fieldDesc.IsMap() {
 		if _, isSimple := expr.Collection.(*ast.Identifier); isSimple {
 			// Allow star operator for message presence checks on singular fields
 			// Per AIP-160: m:* checks if message field m is present (non-default)
@@ -967,8 +983,8 @@ func (pv *ProtoValidator) validateHas(expr *ast.HasExpression, errors *[]error) 
 				return // Valid: singular message presence check
 			}
 
-			// Simple identifier that's not repeated (and not star on message)
-			pv.addError(errors, "HAS operator on simple fields requires repeated field, got singular %s", fieldDesc.Kind())
+			// Simple identifier that's not repeated, not a map (and not star on message)
+			pv.addError(errors, "HAS operator on simple fields requires repeated field or map, got singular %s", fieldDesc.Kind())
 			return
 		}
 		// For TraversalExpression: fieldDesc is the nested field (can be singular or repeated)

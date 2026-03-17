@@ -24,18 +24,18 @@ func TestProtoValidator_Map_KeyPresence(t *testing.T) {
 		{"bool value map key presence", `features:beta`, false, ""},
 		{"int64 value map", `counters:requests`, false, ""},
 		{"double value map", `metrics:cpu`, false, ""},
-		
+
 		// Numeric keys (int32/int64 maps)
 		{"int32 key map - numeric key", `id_names:100`, false, ""},
 		{"int64 key map - numeric key", `id_counts:999`, false, ""},
-		
+
 		// Invalid - not a map
 		{"not a map field", `name:key`, true, "not a map"},
 		{"not a map - int field", `age:key`, true, "not a map"},
-		
+
 		// Invalid - field doesn't exist
 		{"nonexistent map", `nonexistent:key`, true, "does not exist"},
-		
+
 		// Invalid - missing HAS operator
 		{"map without operator", `labels`, true, ""},
 	}
@@ -75,13 +75,13 @@ func TestProtoValidator_Map_KeyPresenceStar(t *testing.T) {
 		{"int32 value map key:star", `settings.timeout:*`, false, ""},
 		{"bool value map key:star", `features.beta:*`, false, ""},
 		{"double value map key:star", `metrics.cpu:*`, false, ""},
-		
+
 		// Invalid - star not in HAS operator context
 		{"star in comparison not HAS", `labels.env = "*"`, false, ""}, // This is literal string "*", should be valid
-		
+
 		// Invalid - not a map
 		{"not a map with star", `name.env:*`, true, "not a map"},
-		
+
 		// Invalid - field doesn't exist
 		{"nonexistent map with star", `nonexistent.key:*`, true, "does not exist"},
 	}
@@ -124,20 +124,20 @@ func TestProtoValidator_Map_KeyValueMatch(t *testing.T) {
 		{"double value map", `metrics.cpu = 0.75`, false, ""},
 		{"bool value map true", `features.beta = true`, false, ""},
 		{"bool value map false", `features.enabled = false`, false, ""},
-		
+
 		// Numeric key maps
 		{"int32 key map with value", `id_names.100 = "user"`, false, ""},
 		{"int64 key map with value", `id_counts.999 = 42`, false, ""},
-		
+
 		// Type mismatches
 		{"string map with int value", `labels.env = 123`, true, "type mismatch"},
 		{"int32 map with string value", `settings.timeout = "30"`, true, "type mismatch"},
 		{"bool map with string value", `features.beta = "true"`, true, "type mismatch"},
 		{"double map with bool", `metrics.cpu = true`, true, "type mismatch"},
-		
+
 		// Invalid - not a map
 		{"not a map traversal", `name.key = "value"`, true, ""},
-		
+
 		// Invalid - field doesn't exist
 		{"nonexistent map key-value", `nonexistent.key = "val"`, true, "does not exist"},
 	}
@@ -178,14 +178,14 @@ func TestProtoValidator_Map_ComparisonOperators(t *testing.T) {
 		{"int64 map greater equal", `counters.requests >= 1000`, false, ""},
 		{"double map less than", `metrics.cpu < 1.0`, false, ""},
 		{"double map not equal", `metrics.cpu != 0.5`, false, ""},
-		
+
 		// String comparisons (AIP-160 supports these)
 		{"string map greater than", `labels.env > "prod"`, false, ""},
 		{"string map less equal", `labels.region <= "z"`, false, ""},
-		
+
 		// Invalid - comparison on bool map
 		{"bool map comparison", `features.beta > true`, true, "operator"},
-		
+
 		// Invalid - not a map
 		{"comparison on non-map", `age > 25`, false, ""}, // This is valid for int field
 	}
@@ -222,19 +222,71 @@ func TestProtoValidator_Map_EdgeCases(t *testing.T) {
 		// Valid numeric keys
 		{"int32 key in HAS", `id_names:100`, false, ""},
 		{"int64 key in HAS", `id_counts:999`, false, ""},
-		
+
 		// Invalid - can't traverse into map value (it's a scalar)
 		{"traverse into string map value", `labels.env.nested = "val"`, true, "cannot traverse"},
-		
+
 		// Invalid - can't traverse into map value (it's a scalar)
 		{"traverse into int32 map value", `settings.timeout.nested = 1`, true, "cannot traverse"},
-		
+
 		// HAS with star on whole map (ambiguous - might be invalid)
 		{"star on map without key", `labels:*`, true, ""}, // This might be valid or invalid
-		
+
 		// NOT operator with maps
 		{"NOT with map key presence", `NOT labels:env`, false, ""},
 		{"minus operator with map", `-labels:env`, false, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateProtoFilter(t, tt.filter, msgDesc)
+			if tt.wantErr {
+				if len(errs) == 0 {
+					t.Errorf("expected error, got no errors")
+				} else if tt.errMsg != "" && !contains(errs[0].Error(), tt.errMsg) {
+					t.Errorf("error = %v, want substring %q", errs[0], tt.errMsg)
+				}
+			} else {
+				if len(errs) > 0 {
+					t.Errorf("unexpected errors: %v", errs)
+				}
+			}
+		})
+	}
+}
+
+// TestProtoValidator_Map_MessageValues tests traversal into map values that are messages.
+// Per Proto3: map values can be any type including messages (but not another map).
+// Example: map<string, Address> locations allows: locations.home.city = "NYC"
+func TestProtoValidator_Map_MessageValues(t *testing.T) {
+	testProtoData := &testdata.TestProtoData{}
+	msgDesc := testProtoData.ProtoReflect().Descriptor()
+
+	tests := []struct {
+		name    string
+		filter  string
+		wantErr bool
+		errMsg  string
+	}{
+		// Valid - traverse into message map value
+		// e.g. locations["home"] = { "city": "NYC"}
+		{"traverse into message field", `locations.home.city = "NYC"`, false, ""},
+		{"traverse into message field zip", `locations.office.zip = "10001"`, false, ""},
+
+		// Valid - comparison operators on message map values
+		{"greater than on message field", `locations.home.zip > "10000"`, false, ""},
+
+		// Valid - HAS operator on message map value field
+		{"has on nested field", `locations.home.city:*`, false, ""},
+
+		// Invalid - field doesn't exist in message value
+		{"nonexistent field in message", `locations.home.country = "US"`, true, "does not exist"},
+
+		// Invalid - can't traverse beyond scalar in message
+		{"traverse into scalar in message", `locations.home.city.nested = "x"`, true, "cannot traverse"},
+
+		// Invalid - still can't traverse into scalar map values
+		{"traverse into scalar map", `labels.env.nested = "x"`, true, "cannot traverse"},
 	}
 
 	for _, tt := range tests {

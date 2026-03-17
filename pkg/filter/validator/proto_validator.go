@@ -271,7 +271,7 @@ func (pv *ProtoValidator) validateOperatorForField(operator string, fieldDesc pr
 // Returns false if validation fails (with error added), true to continue validation.
 //
 // Implementation uses a chain-of-responsibility pattern where each validator handles
-// a specific domain (enums, well-known types, special operators, generic types).
+// a specific domain (enums, well-known types, maps, special operators, generic types).
 // Each validator returns (isKind, isValid) where isKind indicates if the validator
 // applies to this field kind, and isValid indicates if the validation passed.
 func (pv *ProtoValidator) validateKindCompatibility(expr *ast.ComparisonExpression, fieldDesc protoreflect.FieldDescriptor, errors *[]error) bool {
@@ -279,6 +279,7 @@ func (pv *ProtoValidator) validateKindCompatibility(expr *ast.ComparisonExpressi
 	validators := []func(*ast.ComparisonExpression, protoreflect.FieldDescriptor, *[]error) (isKind bool, isValid bool){
 		pv.validateEnumFieldKind,
 		pv.validateWellKnownKind,
+		pv.validateMapKind,          // NEW: Map validation
 		pv.validateSpecialOperators,
 		pv.validateGenericKinds,
 	}
@@ -356,6 +357,58 @@ func (pv *ProtoValidator) validateWellKnownKind(expr *ast.ComparisonExpression, 
 
 	// Other message types (not well-known types)
 	return false, false
+}
+
+// validateMapKind handles map field validation.
+// Per AIP-160: Maps support "m.key = value" syntax
+//
+// Map syntax forms:
+// - m:key         → HAS operator for key presence (handled in validateHas)
+// - m.key:*       → HAS operator with star (handled in validateHas)
+// - m.key = value → Comparison operator for key-value match (handled here)
+//
+// For comparisons on maps, the left side is a TraversalExpression (m.key),
+// where the map field has already been resolved. We need to validate that
+// the comparison value matches the map's value type.
+func (pv *ProtoValidator) validateMapKind(expr *ast.ComparisonExpression, fieldDesc protoreflect.FieldDescriptor, errors *[]error) (isKind bool, isValid bool) {
+	// Check if this is a map field accessed via traversal
+	// Pattern: labels.env = "value" where labels is map<string, string>
+	traversal, ok := expr.Left.(*ast.TraversalExpression);
+	if !ok || !fieldDesc.IsMap() {
+		return false, false // Not a map traversal
+	}
+
+	// Get the map value type (what's stored in the map)
+	mapValueKind := fieldDesc.MapValue().Kind()
+	
+	// Get the kind of the comparison value
+	valueKind, kindOk := pv.getExpressionKind(expr.Right)
+	if !kindOk {
+		pv.addError(errors, "cannot determine type of comparison value")
+		return true, false
+	}
+	
+	// Validate value type matches map's value type
+	if !pv.protoKindsCompatible(mapValueKind, valueKind) {
+		// Get the key being accessed (for better error message)
+		keyName := "key"
+		if rightIdent, ok := traversal.Right.(*ast.Identifier); ok {
+			keyName = rightIdent.Value
+		}
+		
+		pv.addError(errors, "type mismatch: map '%s' value type is %s, cannot compare key '%s' with %s value",
+			fieldDesc.Name(), mapValueKind, keyName, valueKind)
+		return true, false
+	}
+	
+	// Validate numeric ranges for integer map values
+	if isProtoIntegerKind(mapValueKind) {
+		if numLit, ok := expr.Right.(*ast.NumberLiteral); ok {
+			pv.validateNumericRange(numLit.Value, mapValueKind, string(fieldDesc.Name()), errors)
+		}
+	}
+	
+	return true, true // Is map kind and valid
 }
 
 // validateSpecialOperators checks constraints on special operators and literals.
@@ -634,11 +687,24 @@ func (pv *ProtoValidator) validateUnary(expr *ast.UnaryExpression, errors *[]err
 }
 
 // validateTraversal validates nested field access (e.g., email.address).
+// Also handles map key access (e.g., labels.env for maps).
 func (pv *ProtoValidator) validateTraversal(expr *ast.TraversalExpression, errors *[]error) {
 	// Resolve the left side and get its field descriptor
 	leftField, _ := pv.resolveFieldDescriptor(expr.Left, pv.descriptor, errors)
 	if leftField == nil {
 		return // Error already added by resolveFieldDescriptor
+	}
+
+	// Check if left field is a map
+	if leftField.IsMap() {
+		// For maps, traversal creates a "virtual field" for the key
+		// Example: labels.env accesses the value for key "env"
+		// The right side must be either:
+		// - Part of a comparison (labels.env = "value")
+		// - Part of a HAS expression (labels.env:*)
+		// We validate this in the parent expression (Comparison or Has)
+		// For now, just mark that we've validated the traversal itself
+		return
 	}
 
 	// Ensure the left field is a message type (can be traversed)
@@ -803,7 +869,15 @@ func (pv *ProtoValidator) validateHas(expr *ast.HasExpression, errors *[]error) 
 	// HAS operator can be used on:
 	// - Repeated fields (any type) - validates element type
 	// - Nested fields in messages (repeated or singular) - validates nested field type
-	// - Maps (TODO: not yet implemented)
+	// - Maps (key presence check: m:key)
+
+	// Check if field is a map
+	if fieldDesc.IsMap() {
+		// For maps, HAS operator checks key presence: m:key
+		// The member is the key, and we need to validate it against the map's key type
+		pv.validateMapKeyPresence(fieldDesc, expr.Member, errors)
+		return
+	}
 
 	// For simple identifiers (not traversals), field must be repeated
 	// UNLESS it's a star operator for presence check (Cycle 7D)
@@ -991,6 +1065,55 @@ func isTimestampField(fieldDesc protoreflect.FieldDescriptor) bool {
 //   - "2024-03-16 05:00:00Z"              (space instead of T)
 func isValidRFC3339(value string) bool {
 	return rfc3339Pattern.MatchString(value)
+}
+
+// validateMapKeyPresence validates HAS operator on map fields (m:key syntax).
+// Per AIP-160: "m:foo" checks if map m contains the key "foo".
+//
+// Map key types can be:
+// - string, int32, int64, uint32, uint64, sint32, sint64, fixed32, fixed64, sfixed32, sfixed64, bool
+// (Proto3 restriction: keys cannot be float, double, bytes, enums, or messages)
+//
+// Examples:
+//   labels:env          → check if string key "env" exists (env is identifier, treated as string)
+//   settings:timeout    → check if string key "timeout" exists
+//   id_names:100        → check if int32 key 100 exists (100 is number literal)
+func (pv *ProtoValidator) validateMapKeyPresence(fieldDesc protoreflect.FieldDescriptor, keyExpr ast.Node, errors *[]error) {
+	// Get map key and value types
+	mapKeyKind := fieldDesc.MapKey().Kind()
+	
+	// Get the kind of the key expression
+	// Special case: For string map keys, identifiers are treated as string literals
+	// Example: labels:env means key is the string "env", not a field lookup
+	var keyKind protoreflect.Kind
+	
+	if _, ok := keyExpr.(*ast.Identifier); ok && mapKeyKind == protoreflect.StringKind {
+		// Identifier in HAS operator on string map = string key
+		// Example: labels:env → key is "env" (string)
+		keyKind = protoreflect.StringKind
+	} else {
+		// For other cases, get expression kind normally
+		var kindOk bool
+		keyKind, kindOk = pv.getExpressionKind(keyExpr)
+		if !kindOk {
+			pv.addError(errors, "cannot determine type of map key expression")
+			return
+		}
+	}
+	
+	// Validate key type compatibility
+	if !pv.protoKindsCompatible(mapKeyKind, keyKind) {
+		pv.addError(errors, "type mismatch: map '%s' key type is %s, cannot compare with %s",
+			fieldDesc.Name(), mapKeyKind, keyKind)
+		return
+	}
+	
+	// For numeric keys, validate the value is within range
+	if isProtoIntegerKind(mapKeyKind) {
+		if numLit, ok := keyExpr.(*ast.NumberLiteral); ok {
+			pv.validateNumericRange(numLit.Value, mapKeyKind, string(fieldDesc.Name()), errors)
+		}
+	}
 }
 
 // getNumericValue extracts a float64 value from an expression.

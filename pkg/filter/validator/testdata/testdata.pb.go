@@ -524,8 +524,18 @@ type TestProtoData struct {
 	Timeout *durationpb.Duration `protobuf:"bytes,30,opt,name=timeout,proto3" json:"timeout,omitempty"`
 	Delay   *durationpb.Duration `protobuf:"bytes,31,opt,name=delay,proto3" json:"delay,omitempty"`
 	// Timestamp fields for AIP-160 RFC-3339 validation (Phase 2: Timestamp Support)
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,32,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,33,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,32,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,33,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// Map fields for AIP-160 map validation (Phase 3: Map Support)
+	// String key maps with various value types
+	Labels   map[string]string  `protobuf:"bytes,40,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`      // String → String
+	Settings map[string]int32   `protobuf:"bytes,41,rep,name=settings,proto3" json:"settings,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"` // String → int32
+	Counters map[string]int64   `protobuf:"bytes,42,rep,name=counters,proto3" json:"counters,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"` // String → int64
+	Metrics  map[string]float64 `protobuf:"bytes,43,rep,name=metrics,proto3" json:"metrics,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"fixed64,2,opt,name=value"`  // String → double
+	Features map[string]bool    `protobuf:"bytes,44,rep,name=features,proto3" json:"features,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"` // String → bool
+	// Numeric key maps (less common but valid)
+	IdNames       map[int32]string `protobuf:"bytes,45,rep,name=id_names,json=idNames,proto3" json:"id_names,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`     // int32 → String
+	IdCounts      map[int64]int32  `protobuf:"bytes,46,rep,name=id_counts,json=idCounts,proto3" json:"id_counts,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"` // int64 → int32
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -749,6 +759,55 @@ func (x *TestProtoData) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *TestProtoData) GetLabels() map[string]string {
+	if x != nil {
+		return x.Labels
+	}
+	return nil
+}
+
+func (x *TestProtoData) GetSettings() map[string]int32 {
+	if x != nil {
+		return x.Settings
+	}
+	return nil
+}
+
+func (x *TestProtoData) GetCounters() map[string]int64 {
+	if x != nil {
+		return x.Counters
+	}
+	return nil
+}
+
+func (x *TestProtoData) GetMetrics() map[string]float64 {
+	if x != nil {
+		return x.Metrics
+	}
+	return nil
+}
+
+func (x *TestProtoData) GetFeatures() map[string]bool {
+	if x != nil {
+		return x.Features
+	}
+	return nil
+}
+
+func (x *TestProtoData) GetIdNames() map[int32]string {
+	if x != nil {
+		return x.IdNames
+	}
+	return nil
+}
+
+func (x *TestProtoData) GetIdCounts() map[int64]int32 {
+	if x != nil {
+		return x.IdCounts
+	}
+	return nil
+}
+
 var File_testdata_proto protoreflect.FileDescriptor
 
 const file_testdata_proto_rawDesc = "" +
@@ -785,7 +844,7 @@ const file_testdata_proto_rawDesc = "" +
 	"NestedData\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\aenabled\x18\x02 \x01(\bR\aenabled\x12&\n" +
-	"\x04leaf\x18\x03 \x01(\v2\x12.testdata.LeafDataR\x04leaf\"\xca\a\n" +
+	"\x04leaf\x18\x03 \x01(\v2\x12.testdata.LeafDataR\x04leaf\"\xbc\x0e\n" +
 	"\rTestProtoData\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
 	"\x03age\x18\x02 \x01(\x05R\x03age\x12\x16\n" +
@@ -818,7 +877,35 @@ const file_testdata_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18  \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18! \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt*v\n" +
+	"updated_at\x18! \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12;\n" +
+	"\x06labels\x18( \x03(\v2#.testdata.TestProtoData.LabelsEntryR\x06labels\x12A\n" +
+	"\bsettings\x18) \x03(\v2%.testdata.TestProtoData.SettingsEntryR\bsettings\x12A\n" +
+	"\bcounters\x18* \x03(\v2%.testdata.TestProtoData.CountersEntryR\bcounters\x12>\n" +
+	"\ametrics\x18+ \x03(\v2$.testdata.TestProtoData.MetricsEntryR\ametrics\x12A\n" +
+	"\bfeatures\x18, \x03(\v2%.testdata.TestProtoData.FeaturesEntryR\bfeatures\x12?\n" +
+	"\bid_names\x18- \x03(\v2$.testdata.TestProtoData.IdNamesEntryR\aidNames\x12B\n" +
+	"\tid_counts\x18. \x03(\v2%.testdata.TestProtoData.IdCountsEntryR\bidCounts\x1a9\n" +
+	"\vLabelsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a;\n" +
+	"\rSettingsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\x1a;\n" +
+	"\rCountersEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x03R\x05value:\x028\x01\x1a:\n" +
+	"\fMetricsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x01R\x05value:\x028\x01\x1a;\n" +
+	"\rFeaturesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\bR\x05value:\x028\x01\x1a:\n" +
+	"\fIdNamesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\x05R\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a;\n" +
+	"\rIdCountsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\x03R\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01*v\n" +
 	"\n" +
 	"TaskStatus\x12\x1b\n" +
 	"\x17TASK_STATUS_UNSPECIFIED\x10\x00\x12\x16\n" +
@@ -846,7 +933,7 @@ func file_testdata_proto_rawDescGZIP() []byte {
 }
 
 var file_testdata_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_testdata_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_testdata_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_testdata_proto_goTypes = []any{
 	(TaskStatus)(0),               // 0: testdata.TaskStatus
 	(TaskResult)(0),               // 1: testdata.TaskResult
@@ -855,8 +942,15 @@ var file_testdata_proto_goTypes = []any{
 	(*EmailMetadata)(nil),         // 4: testdata.EmailMetadata
 	(*NestedData)(nil),            // 5: testdata.NestedData
 	(*TestProtoData)(nil),         // 6: testdata.TestProtoData
-	(*durationpb.Duration)(nil),   // 7: google.protobuf.Duration
-	(*timestamppb.Timestamp)(nil), // 8: google.protobuf.Timestamp
+	nil,                           // 7: testdata.TestProtoData.LabelsEntry
+	nil,                           // 8: testdata.TestProtoData.SettingsEntry
+	nil,                           // 9: testdata.TestProtoData.CountersEntry
+	nil,                           // 10: testdata.TestProtoData.MetricsEntry
+	nil,                           // 11: testdata.TestProtoData.FeaturesEntry
+	nil,                           // 12: testdata.TestProtoData.IdNamesEntry
+	nil,                           // 13: testdata.TestProtoData.IdCountsEntry
+	(*durationpb.Duration)(nil),   // 14: google.protobuf.Duration
+	(*timestamppb.Timestamp)(nil), // 15: google.protobuf.Timestamp
 }
 var file_testdata_proto_depIdxs = []int32{
 	0,  // 0: testdata.LeafData.status:type_name -> testdata.TaskStatus
@@ -869,15 +963,22 @@ var file_testdata_proto_depIdxs = []int32{
 	0,  // 7: testdata.TestProtoData.statuses:type_name -> testdata.TaskStatus
 	3,  // 8: testdata.TestProtoData.email:type_name -> testdata.Email
 	3,  // 9: testdata.TestProtoData.emails:type_name -> testdata.Email
-	7,  // 10: testdata.TestProtoData.timeout:type_name -> google.protobuf.Duration
-	7,  // 11: testdata.TestProtoData.delay:type_name -> google.protobuf.Duration
-	8,  // 12: testdata.TestProtoData.created_at:type_name -> google.protobuf.Timestamp
-	8,  // 13: testdata.TestProtoData.updated_at:type_name -> google.protobuf.Timestamp
-	14, // [14:14] is the sub-list for method output_type
-	14, // [14:14] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	14, // 10: testdata.TestProtoData.timeout:type_name -> google.protobuf.Duration
+	14, // 11: testdata.TestProtoData.delay:type_name -> google.protobuf.Duration
+	15, // 12: testdata.TestProtoData.created_at:type_name -> google.protobuf.Timestamp
+	15, // 13: testdata.TestProtoData.updated_at:type_name -> google.protobuf.Timestamp
+	7,  // 14: testdata.TestProtoData.labels:type_name -> testdata.TestProtoData.LabelsEntry
+	8,  // 15: testdata.TestProtoData.settings:type_name -> testdata.TestProtoData.SettingsEntry
+	9,  // 16: testdata.TestProtoData.counters:type_name -> testdata.TestProtoData.CountersEntry
+	10, // 17: testdata.TestProtoData.metrics:type_name -> testdata.TestProtoData.MetricsEntry
+	11, // 18: testdata.TestProtoData.features:type_name -> testdata.TestProtoData.FeaturesEntry
+	12, // 19: testdata.TestProtoData.id_names:type_name -> testdata.TestProtoData.IdNamesEntry
+	13, // 20: testdata.TestProtoData.id_counts:type_name -> testdata.TestProtoData.IdCountsEntry
+	21, // [21:21] is the sub-list for method output_type
+	21, // [21:21] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_testdata_proto_init() }
@@ -891,7 +992,7 @@ func file_testdata_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_testdata_proto_rawDesc), len(file_testdata_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   5,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

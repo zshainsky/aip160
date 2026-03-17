@@ -89,6 +89,26 @@ func TestProtoValidator_TraversalRestrictions(t *testing.T) {
 		
 		// The validator check would catch these IF they parsed
 
+		// Invalid - bracket syntax for array access (AIP-160 example)
+		{
+			name:    "bracket syntax - single level",
+			filter:  `tags[0] = "urgent"`,
+			wantErr: true,
+			errMsg:  "",  // Will be parser error or validator error
+		},
+		{
+			name:    "bracket syntax - with traversal - AIP-160 example",
+			filter:  `e[0].foo = 42`,
+			wantErr: true,
+			errMsg:  "",  // Per AIP-160: "e[0].foo = 42 is not a valid filter"
+		},
+		{
+			name:    "bracket syntax - nested",
+			filter:  `emails[0].address = "test@example.com"`,
+			wantErr: true,
+			errMsg:  "",
+		},
+
 		// Valid - field names that START with numbers but aren't purely numeric
 		{
 			name:    "field name starting with number",

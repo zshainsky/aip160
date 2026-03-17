@@ -635,6 +635,45 @@ tags = "urgent"                  // Error: use HAS (:) for repeated fields
 addresses = something            // Error: comparison operators not allowed on repeated
 ```
 
+### ✅ Traversal Restrictions
+
+Per AIP-160, certain traversal patterns are explicitly forbidden:
+
+**1. Dot Operator Through Repeated Fields**
+
+```go
+// Invalid - Cannot use dot operator to traverse through repeated fields
+emails.address = "test@example.com"           // ✗ Error: cannot traverse through repeated field
+users.profile.name = "John"                   // ✗ Error: cannot traverse through repeated field
+
+// Valid - Use HAS operator instead
+emails.address:"test@example.com"             // ✓ HAS operator for repeated fields
+users.profile.name:"John"                     // ✓ HAS operator for repeated messages
+```
+
+**2. Array Index Access**
+
+Per AIP-160 spec: *"e.0.foo = 42 and e[0].foo = 42 are not valid filters"*
+
+```go
+// Invalid - Array index access is not supported
+data.0 = "first"                              // ✗ Parser error: numeric field name
+e.0.foo = 42                                  // ✗ Parser error: numeric field name
+tags[0] = "urgent"                            // ✗ Parser error: bracket syntax not supported
+emails[0].address = "test@example.com"        // ✗ Parser error: bracket syntax not supported
+
+// Valid - Use HAS operator for collection membership
+tags:"urgent"                                 // ✓ Check if "urgent" exists in tags
+emails.address:"test@example.com"             // ✓ Check if any email has address
+```
+
+**Why These Are Restricted:**
+
+- AIP-160 filters are designed for **existence checks**, not positional access
+- Repeated fields use HAS operator (`:`) to check if a value exists in the collection
+- Array indexing would require ordered iteration, which conflicts with set-based semantics
+- The parser enforces these restrictions at parse time for safety
+
 ### ✅ Logical Operators
 
 ```go

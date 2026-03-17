@@ -144,6 +144,7 @@ Supports all proto scalar types:
 - **Enums:** Validated as string literals
 - **Duration:** google.protobuf.Duration (numeric + 's' suffix)
 - **Timestamp:** google.protobuf.Timestamp (RFC-3339 string format)
+- **Maps:** map<K,V> with key presence, traversal, and value validation
 
 ```go
 // Valid
@@ -320,6 +321,229 @@ created_at = "not a timestamp"                   // ✗ Invalid RFC-3339 format
 - Regex pattern validates RFC-3339 format: `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$`
 - Validator uses typed constant `timestampFullName` to detect Timestamp fields
 - Full name comparison: `msgDesc.FullName() == "google.protobuf.Timestamp"`
+- Fractional seconds support variable precision (1-9 digits)
+- See `proto_validator_timestamp_test.go` (27 tests)
+
+### ✅ Map Support
+
+Per AIP-160: "Filtering implementations should provide support for map fields"
+
+ProtoValidator provides comprehensive map field validation with all AIP-160 map syntaxes:
+
+```protobuf
+message Resource {
+  map<string, string> labels = 1;           // String → String
+  map<string, int32> settings = 2;          // String → int32
+  map<string, bool> features = 3;           // String → bool
+  map<string, Address> locations = 4;       // String → Message
+  map<int32, string> id_names = 5;          // int32 → String
+}
+
+message Address {
+  string city = 1;
+  string zip = 2;
+  bool is_primary = 3;
+}
+```
+
+#### Map Syntax Forms
+
+**1. Map Key Presence Check** (`m:key`)
+
+Checks if a map contains a specific key:
+
+```go
+// Valid - Check if key exists
+labels:env                    // ✓ Check if labels map has key "env"
+settings:timeout              // ✓ Check if settings map has key "timeout"
+features:beta                 // ✓ Check if features map has key "beta"
+
+// Numeric keys (for maps with int keys)
+id_names:100                  // ✓ Check if id_names map has key 100
+id_names:999                  // ✓ Check if id_names map has key 999
+
+// Invalid - Field doesn't exist
+nonexistent:key               // ✗ Error: field 'nonexistent' does not exist
+
+// Invalid - Not a map
+name:key                      // ✗ Error: HAS operator on simple fields requires repeated field or map
+```
+
+**2. Map Presence Check** (`m:*`)
+
+Per AIP-160: "p:* is true if map field p is present (non-empty)":
+
+```go
+// Valid - Check if map has any entries
+labels:*                      // ✓ Check if labels map is non-empty
+settings:*                    // ✓ Check if settings map has any entries
+features:*                    // ✓ Check if features map is present
+
+// Works with NOT operator
+NOT labels:*                  // ✓ Check if labels map is empty
+```
+
+**3. Map Key-Value Traversal** (`m.key = value`)
+
+Access map values for comparison:
+
+```go
+// Valid - String map comparison
+labels.env = "production"     // ✓ Check if labels["env"] == "production"
+labels.env != "dev"           // ✓ Check if labels["env"] != "dev"
+labels.region > "us"          // ✓ Lexicographic string comparison
+
+// Valid - Int32 map comparison
+settings.timeout > 30         // ✓ Check if settings["timeout"] > 30
+settings.max_retries <= 5     // ✓ Check if settings["max_retries"] <= 5
+settings.buffer != 0          // ✓ Check if settings["buffer"] != 0
+
+// Valid - Bool map comparison
+features.beta = true          // ✓ Check if features["beta"] == true
+features.enabled != false     // ✓ Check if features["enabled"] != false
+
+// Valid - Double map comparison
+metrics.cpu < 0.8             // ✓ Check if metrics["cpu"] < 0.8
+metrics.memory >= 0.5         // ✓ Check if metrics["memory"] >= 0.5
+```
+
+**4. Map Key-Value with Star** (`m.key:*`)
+
+Combines key access with value presence check:
+
+```go
+// Valid - Check if specific key exists with any value
+labels.env:*                  // ✓ Check if labels has key "env" with any value
+settings.timeout:*            // ✓ Check if settings has key "timeout" with any value
+features.beta:*               // ✓ Check if features has key "beta" with any value
+```
+
+#### Map<K,Message> Traversal
+
+When map values are messages, you can traverse into the message fields:
+
+```go
+// Valid - Traverse into message map value
+locations.home.city = "NYC"              // ✓ Access nested field
+locations.office.zip = "10001"           // ✓ Access nested field
+locations.home.city > "A"                // ✓ Lexicographic comparison
+locations.home.is_primary = true         // ✓ Bool field in nested message
+
+// Valid - HAS operator on nested field
+locations.home.city:*                    // ✓ Check if city field is present
+
+// Invalid - Field doesn't exist in message
+locations.home.country = "US"            // ✗ Error: field 'country' does not exist in Address
+
+// Invalid - Can't traverse beyond scalar
+locations.home.city.nested = "x"         // ✗ Error: cannot traverse into non-message field 'city' (type: string)
+```
+
+#### Type Validation
+
+Map values are fully type-validated:
+
+```go
+// Valid - Correct types
+labels.env = "prod"                      // ✓ String value for string map
+settings.timeout = 30                    // ✓ Int32 value for int32 map
+features.beta = true                     // ✓ Bool value for bool map
+metrics.cpu = 0.75                       // ✓ Double value for double map
+
+// Invalid - Type mismatches
+labels.env = 123                         // ✗ Error: type mismatch (expects string, got int)
+settings.timeout = "30"                  // ✗ Error: type mismatch (expects int32, got string)
+features.beta = "true"                   // ✗ Error: type mismatch (expects bool, got string)
+metrics.cpu = true                       // ✗ Error: type mismatch (expects double, got bool)
+```
+
+#### Operator Restrictions
+
+Bool and enum map values only support `=` and `!=` operators:
+
+```go
+// Valid - Equality operators on bool map
+features.beta = true                     // ✓ Equals allowed
+features.beta != false                   // ✓ Not-equals allowed
+
+// Invalid - Comparison operators on bool map
+features.beta > true                     // ✗ Error: boolean field does not support operator '>'
+features.beta < false                    // ✗ Error: boolean field does not support operator '<'
+features.beta >= true                    // ✗ Error: boolean field does not support operator '>='
+
+// Also applies to nested bool fields in message maps
+locations.home.is_primary > true         // ✗ Error: boolean field does not support operator '>'
+```
+
+#### Traversal Restrictions
+
+Cannot traverse through scalar map values:
+
+```go
+// Invalid - Can't traverse into scalar map values
+labels.env.nested = "x"                  // ✗ Error: cannot traverse into map value of type string
+settings.timeout.nested = 1              // ✗ Error: cannot traverse into map value of type int32
+
+// But CAN traverse into message map values
+locations.home.city = "NYC"              // ✓ Message values allow traversal
+```
+
+#### Known Limitations
+
+**1. Numeric Key Traversal**
+
+The parser doesn't support numeric identifiers after the dot operator:
+
+```go
+// Works with HAS syntax
+id_names:100                             // ✓ Check if key 100 exists
+id_counts:999                            // ✓ Check if key 999 exists
+
+// Doesn't work with traversal syntax (parser limitation)
+id_names.100 = "user"                    // ✗ Parser error: expected identifier after '.', got NUMBER
+id_counts.999 = 42                       // ✗ Parser error: expected identifier after '.', got NUMBER
+
+// Workaround: Use string keys in proto design, or use HAS syntax
+```
+
+**2. Minus Operator Binding**
+
+The minus operator (`-`) parses differently than the NOT keyword:
+
+```go
+// Works correctly
+NOT labels:env                           // ✓ Negation of map key presence
+
+// Parser binding issue
+-labels:env                              // ✗ Error: invalid collection expression in HAS operator
+
+// Workaround: Use NOT keyword instead of minus operator
+```
+
+#### AIP-160 Compliance
+
+- ✅ **Map Key Presence:** `m:key` checks if map contains key
+- ✅ **Map Presence:** `m:*` checks if map is non-empty
+- ✅ **Map Traversal:** `m.key` accesses map value
+- ✅ **Comparison Operators:** All operators work on map values (=, !=, <, >, <=, >=)
+- ✅ **Type Validation:** Map values validated against proto value type
+- ✅ **Nested Messages:** Full traversal support for map<K,Message>
+- ✅ **Operator Restrictions:** Bool/enum map values restricted to = and !=
+
+**Implementation Details:**
+- Map detection: `fieldDesc.IsMap()` identifies map fields
+- Key type: `fieldDesc.MapKey().Kind()` gets key type (string, int32, int64)
+- Value type: `fieldDesc.MapValue().Kind()` gets value type
+- Message values: `fieldDesc.MapValue().Message()` for nested traversal
+- Added `validateMapKeyPresence()` for map key validation
+- Added `validateMapKind()` to validator chain for comparison operators
+- See `proto_validator_map_test.go` (58 tests, 100% passing)
+
+## Limitations
+
+### ℹ️ Function Calls
+- Validator uses typed constant `timestampFullName` to detect Timestamp fields
+- Full name comparison: `msgDesc.FullName() == "google.protobuf.Timestamp"`
 - See `proto_validator_timestamp_test.go` (27 tests)
 
 ### ✅ Enum Validation with Prefix Stripping
@@ -436,24 +660,23 @@ comparison operators not allowed on repeated field 'tags', use HAS operator (:) 
 
 ## Limitations
 
-### ❌ Map Fields (Planned for v2)
+### ⚠️ Star Operator (Partially Supported)
 
-Map fields are not yet supported. Planned syntax per AIP-160:
+The star operator works for maps and message fields, but not for repeated fields:
+
 ```go
-labels:key           // Check if key exists
-labels.key:*         // Check if key is present
-labels.key:value     // Check key-value pair
+// Supported
+labels:*              // ✓ Check if map is non-empty
+message:*             // ✓ Check if message field is present (non-default)
+locations:*           // ✓ Check if map has any entries
+
+// Not supported for repeated fields (parser limitation)
+tags:*                // ✗ Parser doesn't support star on repeated fields
+scores:*              // ✗ Use specific value checks instead
+
+// Workaround for repeated fields: Check for specific values
+tags:"value"          // Check if repeated field contains "value"
 ```
-
-### ❌ Star Operator (Parser Limitation)
-
-The star operator for presence checks requires parser updates:
-```go
-tags:*        // Should work per AIP-160, but parser doesn't support it yet
-message:*     // Check if message field is present
-```
-
-Workaround: Use nested field checks instead.
 
 ### ℹ️ Function Calls
 

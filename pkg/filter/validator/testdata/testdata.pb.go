@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v7.34.0
-// source: testdata.proto
+// source: pkg/filter/validator/testdata/testdata.proto
 
 package testdata
 
@@ -61,11 +61,11 @@ func (x TaskStatus) String() string {
 }
 
 func (TaskStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_testdata_proto_enumTypes[0].Descriptor()
+	return file_pkg_filter_validator_testdata_testdata_proto_enumTypes[0].Descriptor()
 }
 
 func (TaskStatus) Type() protoreflect.EnumType {
-	return &file_testdata_proto_enumTypes[0]
+	return &file_pkg_filter_validator_testdata_testdata_proto_enumTypes[0]
 }
 
 func (x TaskStatus) Number() protoreflect.EnumNumber {
@@ -74,7 +74,7 @@ func (x TaskStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use TaskStatus.Descriptor instead.
 func (TaskStatus) EnumDescriptor() ([]byte, []int) {
-	return file_testdata_proto_rawDescGZIP(), []int{0}
+	return file_pkg_filter_validator_testdata_testdata_proto_rawDescGZIP(), []int{0}
 }
 
 // TaskResult demonstrates enum without prefix (non-standard but valid).
@@ -115,11 +115,11 @@ func (x TaskResult) String() string {
 }
 
 func (TaskResult) Descriptor() protoreflect.EnumDescriptor {
-	return file_testdata_proto_enumTypes[1].Descriptor()
+	return file_pkg_filter_validator_testdata_testdata_proto_enumTypes[1].Descriptor()
 }
 
 func (TaskResult) Type() protoreflect.EnumType {
-	return &file_testdata_proto_enumTypes[1]
+	return &file_pkg_filter_validator_testdata_testdata_proto_enumTypes[1]
 }
 
 func (x TaskResult) Number() protoreflect.EnumNumber {
@@ -128,7 +128,68 @@ func (x TaskResult) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use TaskResult.Descriptor instead.
 func (TaskResult) EnumDescriptor() ([]byte, []int) {
-	return file_testdata_proto_rawDescGZIP(), []int{1}
+	return file_pkg_filter_validator_testdata_testdata_proto_rawDescGZIP(), []int{1}
+}
+
+// Address is a simple message for testing map<string, Message> traversal
+type Address struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	City          string                 `protobuf:"bytes,1,opt,name=city,proto3" json:"city,omitempty"`
+	Zip           string                 `protobuf:"bytes,2,opt,name=zip,proto3" json:"zip,omitempty"`
+	IsPrimary     bool                   `protobuf:"varint,3,opt,name=is_primary,json=isPrimary,proto3" json:"is_primary,omitempty"` // For testing operator restrictions on nested bools
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Address) Reset() {
+	*x = Address{}
+	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Address) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Address) ProtoMessage() {}
+
+func (x *Address) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Address.ProtoReflect.Descriptor instead.
+func (*Address) Descriptor() ([]byte, []int) {
+	return file_pkg_filter_validator_testdata_testdata_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *Address) GetCity() string {
+	if x != nil {
+		return x.City
+	}
+	return ""
+}
+
+func (x *Address) GetZip() string {
+	if x != nil {
+		return x.Zip
+	}
+	return ""
+}
+
+func (x *Address) GetIsPrimary() bool {
+	if x != nil {
+		return x.IsPrimary
+	}
+	return false
 }
 
 // LeafData contains all scalar types at the deepest nesting level.
@@ -167,7 +228,7 @@ type LeafData struct {
 
 func (x *LeafData) Reset() {
 	*x = LeafData{}
-	mi := &file_testdata_proto_msgTypes[0]
+	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -179,7 +240,7 @@ func (x *LeafData) String() string {
 func (*LeafData) ProtoMessage() {}
 
 func (x *LeafData) ProtoReflect() protoreflect.Message {
-	mi := &file_testdata_proto_msgTypes[0]
+	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -192,7 +253,7 @@ func (x *LeafData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LeafData.ProtoReflect.Descriptor instead.
 func (*LeafData) Descriptor() ([]byte, []int) {
-	return file_testdata_proto_rawDescGZIP(), []int{0}
+	return file_pkg_filter_validator_testdata_testdata_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *LeafData) GetText() string {
@@ -332,7 +393,7 @@ type Email struct {
 
 func (x *Email) Reset() {
 	*x = Email{}
-	mi := &file_testdata_proto_msgTypes[1]
+	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -344,7 +405,7 @@ func (x *Email) String() string {
 func (*Email) ProtoMessage() {}
 
 func (x *Email) ProtoReflect() protoreflect.Message {
-	mi := &file_testdata_proto_msgTypes[1]
+	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -357,7 +418,7 @@ func (x *Email) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Email.ProtoReflect.Descriptor instead.
 func (*Email) Descriptor() ([]byte, []int) {
-	return file_testdata_proto_rawDescGZIP(), []int{1}
+	return file_pkg_filter_validator_testdata_testdata_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Email) GetAddress() string {
@@ -385,7 +446,7 @@ type EmailMetadata struct {
 
 func (x *EmailMetadata) Reset() {
 	*x = EmailMetadata{}
-	mi := &file_testdata_proto_msgTypes[2]
+	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -397,7 +458,7 @@ func (x *EmailMetadata) String() string {
 func (*EmailMetadata) ProtoMessage() {}
 
 func (x *EmailMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_testdata_proto_msgTypes[2]
+	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -410,7 +471,7 @@ func (x *EmailMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EmailMetadata.ProtoReflect.Descriptor instead.
 func (*EmailMetadata) Descriptor() ([]byte, []int) {
-	return file_testdata_proto_rawDescGZIP(), []int{2}
+	return file_pkg_filter_validator_testdata_testdata_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *EmailMetadata) GetSource() string {
@@ -439,7 +500,7 @@ type NestedData struct {
 
 func (x *NestedData) Reset() {
 	*x = NestedData{}
-	mi := &file_testdata_proto_msgTypes[3]
+	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -451,7 +512,7 @@ func (x *NestedData) String() string {
 func (*NestedData) ProtoMessage() {}
 
 func (x *NestedData) ProtoReflect() protoreflect.Message {
-	mi := &file_testdata_proto_msgTypes[3]
+	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -464,7 +525,7 @@ func (x *NestedData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NestedData.ProtoReflect.Descriptor instead.
 func (*NestedData) Descriptor() ([]byte, []int) {
-	return file_testdata_proto_rawDescGZIP(), []int{3}
+	return file_pkg_filter_validator_testdata_testdata_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *NestedData) GetName() string {
@@ -524,15 +585,27 @@ type TestProtoData struct {
 	Timeout *durationpb.Duration `protobuf:"bytes,30,opt,name=timeout,proto3" json:"timeout,omitempty"`
 	Delay   *durationpb.Duration `protobuf:"bytes,31,opt,name=delay,proto3" json:"delay,omitempty"`
 	// Timestamp fields for AIP-160 RFC-3339 validation (Phase 2: Timestamp Support)
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,32,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,33,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,32,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,33,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// Map fields for AIP-160 map validation (Phase 3: Map Support)
+	// String key maps with various value types
+	Labels   map[string]string  `protobuf:"bytes,40,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`      // String → String
+	Settings map[string]int32   `protobuf:"bytes,41,rep,name=settings,proto3" json:"settings,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"` // String → int32
+	Counters map[string]int64   `protobuf:"bytes,42,rep,name=counters,proto3" json:"counters,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"` // String → int64
+	Metrics  map[string]float64 `protobuf:"bytes,43,rep,name=metrics,proto3" json:"metrics,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"fixed64,2,opt,name=value"`  // String → double
+	Features map[string]bool    `protobuf:"bytes,44,rep,name=features,proto3" json:"features,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"` // String → bool
+	// Numeric key maps (less common but valid)
+	IdNames  map[int32]string `protobuf:"bytes,45,rep,name=id_names,json=idNames,proto3" json:"id_names,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`     // int32 → String
+	IdCounts map[int64]int32  `protobuf:"bytes,46,rep,name=id_counts,json=idCounts,proto3" json:"id_counts,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"` // int64 → int32
+	// Map with message values (for testing traversal into map values)
+	Locations     map[string]*Address `protobuf:"bytes,47,rep,name=locations,proto3" json:"locations,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // String → Message
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TestProtoData) Reset() {
 	*x = TestProtoData{}
-	mi := &file_testdata_proto_msgTypes[4]
+	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -544,7 +617,7 @@ func (x *TestProtoData) String() string {
 func (*TestProtoData) ProtoMessage() {}
 
 func (x *TestProtoData) ProtoReflect() protoreflect.Message {
-	mi := &file_testdata_proto_msgTypes[4]
+	mi := &file_pkg_filter_validator_testdata_testdata_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -557,7 +630,7 @@ func (x *TestProtoData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TestProtoData.ProtoReflect.Descriptor instead.
 func (*TestProtoData) Descriptor() ([]byte, []int) {
-	return file_testdata_proto_rawDescGZIP(), []int{4}
+	return file_pkg_filter_validator_testdata_testdata_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *TestProtoData) GetName() string {
@@ -749,11 +822,72 @@ func (x *TestProtoData) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-var File_testdata_proto protoreflect.FileDescriptor
+func (x *TestProtoData) GetLabels() map[string]string {
+	if x != nil {
+		return x.Labels
+	}
+	return nil
+}
 
-const file_testdata_proto_rawDesc = "" +
+func (x *TestProtoData) GetSettings() map[string]int32 {
+	if x != nil {
+		return x.Settings
+	}
+	return nil
+}
+
+func (x *TestProtoData) GetCounters() map[string]int64 {
+	if x != nil {
+		return x.Counters
+	}
+	return nil
+}
+
+func (x *TestProtoData) GetMetrics() map[string]float64 {
+	if x != nil {
+		return x.Metrics
+	}
+	return nil
+}
+
+func (x *TestProtoData) GetFeatures() map[string]bool {
+	if x != nil {
+		return x.Features
+	}
+	return nil
+}
+
+func (x *TestProtoData) GetIdNames() map[int32]string {
+	if x != nil {
+		return x.IdNames
+	}
+	return nil
+}
+
+func (x *TestProtoData) GetIdCounts() map[int64]int32 {
+	if x != nil {
+		return x.IdCounts
+	}
+	return nil
+}
+
+func (x *TestProtoData) GetLocations() map[string]*Address {
+	if x != nil {
+		return x.Locations
+	}
+	return nil
+}
+
+var File_pkg_filter_validator_testdata_testdata_proto protoreflect.FileDescriptor
+
+const file_pkg_filter_validator_testdata_testdata_proto_rawDesc = "" +
 	"\n" +
-	"\x0etestdata.proto\x12\btestdata\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa1\x04\n" +
+	",pkg/filter/validator/testdata/testdata.proto\x12\btestdata\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"N\n" +
+	"\aAddress\x12\x12\n" +
+	"\x04city\x18\x01 \x01(\tR\x04city\x12\x10\n" +
+	"\x03zip\x18\x02 \x01(\tR\x03zip\x12\x1d\n" +
+	"\n" +
+	"is_primary\x18\x03 \x01(\bR\tisPrimary\"\xa1\x04\n" +
 	"\bLeafData\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x12\x12\n" +
 	"\x04data\x18\x02 \x01(\fR\x04data\x12\x12\n" +
@@ -785,7 +919,7 @@ const file_testdata_proto_rawDesc = "" +
 	"NestedData\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\aenabled\x18\x02 \x01(\bR\aenabled\x12&\n" +
-	"\x04leaf\x18\x03 \x01(\v2\x12.testdata.LeafDataR\x04leaf\"\xca\a\n" +
+	"\x04leaf\x18\x03 \x01(\v2\x12.testdata.LeafDataR\x04leaf\"\xd3\x0f\n" +
 	"\rTestProtoData\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
 	"\x03age\x18\x02 \x01(\x05R\x03age\x12\x16\n" +
@@ -818,7 +952,39 @@ const file_testdata_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18  \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18! \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt*v\n" +
+	"updated_at\x18! \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12;\n" +
+	"\x06labels\x18( \x03(\v2#.testdata.TestProtoData.LabelsEntryR\x06labels\x12A\n" +
+	"\bsettings\x18) \x03(\v2%.testdata.TestProtoData.SettingsEntryR\bsettings\x12A\n" +
+	"\bcounters\x18* \x03(\v2%.testdata.TestProtoData.CountersEntryR\bcounters\x12>\n" +
+	"\ametrics\x18+ \x03(\v2$.testdata.TestProtoData.MetricsEntryR\ametrics\x12A\n" +
+	"\bfeatures\x18, \x03(\v2%.testdata.TestProtoData.FeaturesEntryR\bfeatures\x12?\n" +
+	"\bid_names\x18- \x03(\v2$.testdata.TestProtoData.IdNamesEntryR\aidNames\x12B\n" +
+	"\tid_counts\x18. \x03(\v2%.testdata.TestProtoData.IdCountsEntryR\bidCounts\x12D\n" +
+	"\tlocations\x18/ \x03(\v2&.testdata.TestProtoData.LocationsEntryR\tlocations\x1a9\n" +
+	"\vLabelsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a;\n" +
+	"\rSettingsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\x1a;\n" +
+	"\rCountersEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x03R\x05value:\x028\x01\x1a:\n" +
+	"\fMetricsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x01R\x05value:\x028\x01\x1a;\n" +
+	"\rFeaturesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\bR\x05value:\x028\x01\x1a:\n" +
+	"\fIdNamesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\x05R\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a;\n" +
+	"\rIdCountsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\x03R\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\x1aO\n" +
+	"\x0eLocationsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12'\n" +
+	"\x05value\x18\x02 \x01(\v2\x11.testdata.AddressR\x05value:\x028\x01*v\n" +
 	"\n" +
 	"TaskStatus\x12\x1b\n" +
 	"\x17TASK_STATUS_UNSPECIFIED\x10\x00\x12\x16\n" +
@@ -834,73 +1000,91 @@ const file_testdata_proto_rawDesc = "" +
 	"\aPENDING\x10\x03B;Z9github.com/zshainsky/aip160/pkg/filter/validator/testdatab\x06proto3"
 
 var (
-	file_testdata_proto_rawDescOnce sync.Once
-	file_testdata_proto_rawDescData []byte
+	file_pkg_filter_validator_testdata_testdata_proto_rawDescOnce sync.Once
+	file_pkg_filter_validator_testdata_testdata_proto_rawDescData []byte
 )
 
-func file_testdata_proto_rawDescGZIP() []byte {
-	file_testdata_proto_rawDescOnce.Do(func() {
-		file_testdata_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_testdata_proto_rawDesc), len(file_testdata_proto_rawDesc)))
+func file_pkg_filter_validator_testdata_testdata_proto_rawDescGZIP() []byte {
+	file_pkg_filter_validator_testdata_testdata_proto_rawDescOnce.Do(func() {
+		file_pkg_filter_validator_testdata_testdata_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_pkg_filter_validator_testdata_testdata_proto_rawDesc), len(file_pkg_filter_validator_testdata_testdata_proto_rawDesc)))
 	})
-	return file_testdata_proto_rawDescData
+	return file_pkg_filter_validator_testdata_testdata_proto_rawDescData
 }
 
-var file_testdata_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_testdata_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
-var file_testdata_proto_goTypes = []any{
+var file_pkg_filter_validator_testdata_testdata_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_pkg_filter_validator_testdata_testdata_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_pkg_filter_validator_testdata_testdata_proto_goTypes = []any{
 	(TaskStatus)(0),               // 0: testdata.TaskStatus
 	(TaskResult)(0),               // 1: testdata.TaskResult
-	(*LeafData)(nil),              // 2: testdata.LeafData
-	(*Email)(nil),                 // 3: testdata.Email
-	(*EmailMetadata)(nil),         // 4: testdata.EmailMetadata
-	(*NestedData)(nil),            // 5: testdata.NestedData
-	(*TestProtoData)(nil),         // 6: testdata.TestProtoData
-	(*durationpb.Duration)(nil),   // 7: google.protobuf.Duration
-	(*timestamppb.Timestamp)(nil), // 8: google.protobuf.Timestamp
+	(*Address)(nil),               // 2: testdata.Address
+	(*LeafData)(nil),              // 3: testdata.LeafData
+	(*Email)(nil),                 // 4: testdata.Email
+	(*EmailMetadata)(nil),         // 5: testdata.EmailMetadata
+	(*NestedData)(nil),            // 6: testdata.NestedData
+	(*TestProtoData)(nil),         // 7: testdata.TestProtoData
+	nil,                           // 8: testdata.TestProtoData.LabelsEntry
+	nil,                           // 9: testdata.TestProtoData.SettingsEntry
+	nil,                           // 10: testdata.TestProtoData.CountersEntry
+	nil,                           // 11: testdata.TestProtoData.MetricsEntry
+	nil,                           // 12: testdata.TestProtoData.FeaturesEntry
+	nil,                           // 13: testdata.TestProtoData.IdNamesEntry
+	nil,                           // 14: testdata.TestProtoData.IdCountsEntry
+	nil,                           // 15: testdata.TestProtoData.LocationsEntry
+	(*durationpb.Duration)(nil),   // 16: google.protobuf.Duration
+	(*timestamppb.Timestamp)(nil), // 17: google.protobuf.Timestamp
 }
-var file_testdata_proto_depIdxs = []int32{
+var file_pkg_filter_validator_testdata_testdata_proto_depIdxs = []int32{
 	0,  // 0: testdata.LeafData.status:type_name -> testdata.TaskStatus
 	1,  // 1: testdata.LeafData.result:type_name -> testdata.TaskResult
-	4,  // 2: testdata.Email.metadata:type_name -> testdata.EmailMetadata
-	2,  // 3: testdata.NestedData.leaf:type_name -> testdata.LeafData
+	5,  // 2: testdata.Email.metadata:type_name -> testdata.EmailMetadata
+	3,  // 3: testdata.NestedData.leaf:type_name -> testdata.LeafData
 	0,  // 4: testdata.TestProtoData.task_status:type_name -> testdata.TaskStatus
 	1,  // 5: testdata.TestProtoData.task_result:type_name -> testdata.TaskResult
-	5,  // 6: testdata.TestProtoData.nested:type_name -> testdata.NestedData
+	6,  // 6: testdata.TestProtoData.nested:type_name -> testdata.NestedData
 	0,  // 7: testdata.TestProtoData.statuses:type_name -> testdata.TaskStatus
-	3,  // 8: testdata.TestProtoData.email:type_name -> testdata.Email
-	3,  // 9: testdata.TestProtoData.emails:type_name -> testdata.Email
-	7,  // 10: testdata.TestProtoData.timeout:type_name -> google.protobuf.Duration
-	7,  // 11: testdata.TestProtoData.delay:type_name -> google.protobuf.Duration
-	8,  // 12: testdata.TestProtoData.created_at:type_name -> google.protobuf.Timestamp
-	8,  // 13: testdata.TestProtoData.updated_at:type_name -> google.protobuf.Timestamp
-	14, // [14:14] is the sub-list for method output_type
-	14, // [14:14] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	4,  // 8: testdata.TestProtoData.email:type_name -> testdata.Email
+	4,  // 9: testdata.TestProtoData.emails:type_name -> testdata.Email
+	16, // 10: testdata.TestProtoData.timeout:type_name -> google.protobuf.Duration
+	16, // 11: testdata.TestProtoData.delay:type_name -> google.protobuf.Duration
+	17, // 12: testdata.TestProtoData.created_at:type_name -> google.protobuf.Timestamp
+	17, // 13: testdata.TestProtoData.updated_at:type_name -> google.protobuf.Timestamp
+	8,  // 14: testdata.TestProtoData.labels:type_name -> testdata.TestProtoData.LabelsEntry
+	9,  // 15: testdata.TestProtoData.settings:type_name -> testdata.TestProtoData.SettingsEntry
+	10, // 16: testdata.TestProtoData.counters:type_name -> testdata.TestProtoData.CountersEntry
+	11, // 17: testdata.TestProtoData.metrics:type_name -> testdata.TestProtoData.MetricsEntry
+	12, // 18: testdata.TestProtoData.features:type_name -> testdata.TestProtoData.FeaturesEntry
+	13, // 19: testdata.TestProtoData.id_names:type_name -> testdata.TestProtoData.IdNamesEntry
+	14, // 20: testdata.TestProtoData.id_counts:type_name -> testdata.TestProtoData.IdCountsEntry
+	15, // 21: testdata.TestProtoData.locations:type_name -> testdata.TestProtoData.LocationsEntry
+	2,  // 22: testdata.TestProtoData.LocationsEntry.value:type_name -> testdata.Address
+	23, // [23:23] is the sub-list for method output_type
+	23, // [23:23] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
-func init() { file_testdata_proto_init() }
-func file_testdata_proto_init() {
-	if File_testdata_proto != nil {
+func init() { file_pkg_filter_validator_testdata_testdata_proto_init() }
+func file_pkg_filter_validator_testdata_testdata_proto_init() {
+	if File_pkg_filter_validator_testdata_testdata_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_testdata_proto_rawDesc), len(file_testdata_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pkg_filter_validator_testdata_testdata_proto_rawDesc), len(file_pkg_filter_validator_testdata_testdata_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   5,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_testdata_proto_goTypes,
-		DependencyIndexes: file_testdata_proto_depIdxs,
-		EnumInfos:         file_testdata_proto_enumTypes,
-		MessageInfos:      file_testdata_proto_msgTypes,
+		GoTypes:           file_pkg_filter_validator_testdata_testdata_proto_goTypes,
+		DependencyIndexes: file_pkg_filter_validator_testdata_testdata_proto_depIdxs,
+		EnumInfos:         file_pkg_filter_validator_testdata_testdata_proto_enumTypes,
+		MessageInfos:      file_pkg_filter_validator_testdata_testdata_proto_msgTypes,
 	}.Build()
-	File_testdata_proto = out.File
-	file_testdata_proto_goTypes = nil
-	file_testdata_proto_depIdxs = nil
+	File_pkg_filter_validator_testdata_testdata_proto = out.File
+	file_pkg_filter_validator_testdata_testdata_proto_goTypes = nil
+	file_pkg_filter_validator_testdata_testdata_proto_depIdxs = nil
 }

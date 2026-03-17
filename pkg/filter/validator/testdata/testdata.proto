@@ -25,6 +25,13 @@ enum TaskResult {
   PENDING = 3;
 }
 
+// Address is a simple message for testing map<string, Message> traversal
+message Address {
+  string city = 1;
+  string zip = 2;
+  bool is_primary = 3;  // For testing operator restrictions on nested bools
+}
+
 // LeafData contains all scalar types at the deepest nesting level.
 // Allows testing traversal validation for all field types at depth.
 message LeafData {
@@ -124,4 +131,19 @@ message TestProtoData {
   // Timestamp fields for AIP-160 RFC-3339 validation (Phase 2: Timestamp Support)
   google.protobuf.Timestamp created_at = 32;
   google.protobuf.Timestamp updated_at = 33;
+  
+  // Map fields for AIP-160 map validation (Phase 3: Map Support)
+  // String key maps with various value types
+  map<string, string> labels = 40;      // String → String
+  map<string, int32> settings = 41;     // String → int32
+  map<string, int64> counters = 42;     // String → int64
+  map<string, double> metrics = 43;     // String → double
+  map<string, bool> features = 44;      // String → bool
+  
+  // Numeric key maps (less common but valid)
+  map<int32, string> id_names = 45;     // int32 → String
+  map<int64, int32> id_counts = 46;     // int64 → int32
+  
+  // Map with message values (for testing traversal into map values)
+  map<string, Address> locations = 47;  // String → Message
 }

@@ -29,6 +29,7 @@ enum TaskResult {
 message Address {
   string city = 1;
   string zip = 2;
+  bool is_primary = 3;  // For testing operator restrictions on nested bools
 }
 
 // LeafData contains all scalar types at the deepest nesting level.

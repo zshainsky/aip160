@@ -136,6 +136,7 @@ type Address struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	City          string                 `protobuf:"bytes,1,opt,name=city,proto3" json:"city,omitempty"`
 	Zip           string                 `protobuf:"bytes,2,opt,name=zip,proto3" json:"zip,omitempty"`
+	IsPrimary     bool                   `protobuf:"varint,3,opt,name=is_primary,json=isPrimary,proto3" json:"is_primary,omitempty"` // For testing operator restrictions on nested bools
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -182,6 +183,13 @@ func (x *Address) GetZip() string {
 		return x.Zip
 	}
 	return ""
+}
+
+func (x *Address) GetIsPrimary() bool {
+	if x != nil {
+		return x.IsPrimary
+	}
+	return false
 }
 
 // LeafData contains all scalar types at the deepest nesting level.
@@ -874,10 +882,12 @@ var File_pkg_filter_validator_testdata_testdata_proto protoreflect.FileDescripto
 
 const file_pkg_filter_validator_testdata_testdata_proto_rawDesc = "" +
 	"\n" +
-	",pkg/filter/validator/testdata/testdata.proto\x12\btestdata\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"/\n" +
+	",pkg/filter/validator/testdata/testdata.proto\x12\btestdata\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"N\n" +
 	"\aAddress\x12\x12\n" +
 	"\x04city\x18\x01 \x01(\tR\x04city\x12\x10\n" +
-	"\x03zip\x18\x02 \x01(\tR\x03zip\"\xa1\x04\n" +
+	"\x03zip\x18\x02 \x01(\tR\x03zip\x12\x1d\n" +
+	"\n" +
+	"is_primary\x18\x03 \x01(\bR\tisPrimary\"\xa1\x04\n" +
 	"\bLeafData\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x12\x12\n" +
 	"\x04data\x18\x02 \x01(\fR\x04data\x12\x12\n" +

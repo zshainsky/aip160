@@ -278,6 +278,14 @@ func TestProtoValidator_Map_MessageValues(t *testing.T) {
 
 		// Valid - HAS operator on message map value field
 		{"has on nested field", `locations.home.city:*`, false, ""},
+		
+		// Valid - bool field with = operator
+		{"bool field equals", `locations.home.is_primary = true`, false, ""},
+		{"bool field not equals", `locations.home.is_primary != false`, false, ""},
+		
+		// Invalid - bool field with comparison operators
+		{"bool field greater than", `locations.home.is_primary > true`, true, "does not support operator"},
+		{"bool field less than", `locations.home.is_primary < false`, true, "does not support operator"},
 
 		// Invalid - field doesn't exist in message value
 		{"nonexistent field in message", `locations.home.country = "US"`, true, "does not exist"},

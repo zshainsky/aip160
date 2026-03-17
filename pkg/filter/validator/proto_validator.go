@@ -739,7 +739,14 @@ func (pv *ProtoValidator) resolveFieldDescriptor(node ast.Node, msgDesc protoref
 			return nil, nil
 		}
 
-		// Ensure left side is a message
+		// Special case: If left side is a map, return the map field itself
+		// The traversal represents map key access (e.g., labels.env)
+		// The caller (validateMapKind) will handle the key validation
+		if leftField.IsMap() {
+			return leftField, msgDesc
+		}
+
+		// Ensure left side is a message (for normal field traversal)
 		if !pv.requireMessageKind(leftField, n.Left, errors) {
 			return nil, nil
 		}
@@ -816,16 +823,52 @@ func (pv *ProtoValidator) validateHas(expr *ast.HasExpression, errors *[]error) 
 		// Nested HAS expressions:
 		// - Repeated messages: emails.address:"test" (check if any email has address="test")
 		// - Singular messages: email.address:"test" (check nested field in singular message)
+		// - Maps with keys: labels.env:* (check if map has key "env")
 		// - Deep nesting: emails.metadata.source:"web", nested.leaf.leaf_tags:"critical"
 		//
 		// Strategy:
-		// 1. Check if left part is repeated → resolve right part within element type
-		// 2. If not repeated → resolve full path (handles singular messages + deep nesting)
+		// 1. Check if left part is a map → handle map key access
+		// 2. Check if left part is repeated → resolve right part within element type
+		// 3. If not repeated → resolve full path (handles singular messages + deep nesting)
 
 		// Try to resolve just the left part
 		leftFieldDesc := pv.resolveFieldFromExpression(coll.Left, pv.descriptor)
 		if leftFieldDesc == nil {
 			pv.addError(errors, "field '%s' does not exist", pv.getFieldPath(coll.Left))
+			return
+		}
+
+		// Check if left part is a map
+		if leftFieldDesc.IsMap() {
+			// MAP KEY ACCESS: labels.env:* or labels.env:"value"
+			// The right part (e.g., "env") is the map key
+			// The member is either * (presence) or a value to check
+			
+			// For star operator, we just validate the key exists (any value)
+			if isStarLiteral(expr.Member) {
+				// Validate the key expression (right part of traversal)
+				pv.validateMapKeyPresence(leftFieldDesc, coll.Right, errors)
+				return
+			}
+			
+			// For value matching (m.foo:42), validate key and value
+			// Key is in coll.Right, value is in expr.Member
+			mapValueKind := leftFieldDesc.MapValue().Kind()
+			memberKind, ok := pv.getExpressionKind(expr.Member)
+			if !ok {
+				pv.addError(errors, "cannot determine type of HAS member expression")
+				return
+			}
+			
+			// Validate value type matches map's value type
+			if !pv.protoKindsCompatible(mapValueKind, memberKind) {
+				pv.addError(errors, "type mismatch: map '%s' value type is %s, cannot check for %s value",
+					leftFieldDesc.Name(), mapValueKind, memberKind)
+				return
+			}
+			
+			// Also validate the key
+			pv.validateMapKeyPresence(leftFieldDesc, coll.Right, errors)
 			return
 		}
 

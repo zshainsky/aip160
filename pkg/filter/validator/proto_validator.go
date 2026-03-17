@@ -713,11 +713,21 @@ func (pv *ProtoValidator) validateTraversal(expr *ast.TraversalExpression, error
 	if leftField.IsMap() {
 		// For maps, traversal creates a "virtual field" for the key
 		// Example: labels.env accesses the value for key "env"
-		// The right side must be either:
-		// - Part of a comparison (labels.env = "value")
-		// - Part of a HAS expression (labels.env:*)
+		
+		// Check if this is a nested traversal (trying to go deeper than map key access)
+		// labels.env: expr.Left is Identifier(labels) → OK
+		// labels.env.nested: expr.Left is TraversalExpression(labels, env) → ERROR
+		if _, isTraversal := expr.Left.(*ast.TraversalExpression); isTraversal {
+			// We're trying to traverse through the result of a map access
+			// Example: labels.env resolved to the map, now trying to do .nested on it
+			mapValueKind := leftField.MapValue().Kind()
+			pv.addError(errors, "cannot traverse into map value of type %s", mapValueKind.String())
+			return
+		}
+		
+		// This is valid map key access (labels.env where labels is Identifier)
+		// The right side must be part of a comparison or HAS expression
 		// We validate this in the parent expression (Comparison or Has)
-		// For now, just mark that we've validated the traversal itself
 		return
 	}
 
@@ -753,11 +763,22 @@ func (pv *ProtoValidator) resolveFieldDescriptor(node ast.Node, msgDesc protoref
 			return nil, nil
 		}
 
-		// Special case: If left side is a map, return the map field itself
-		// The traversal represents map key access (e.g., labels.env)
-		// The caller (validateMapKind) will handle the key validation
+		// Special case: If left side is a map
 		if leftField.IsMap() {
-			return leftField, msgDesc
+			// Two cases:
+			// 1. n.Left is an Identifier: "labels.env" → OK, this is map key access
+			// 2. n.Left is a TraversalExpression: "labels.env.nested" → ERROR, can't traverse into map value
+			
+			if _, isIdentifier := n.Left.(*ast.Identifier); isIdentifier {
+				// Case 1: labels.env → return map field for validateMapKind to handle
+				return leftField, msgDesc
+			} else {
+				// Case 2: labels.env.nested → the recursive resolution returned a map,
+				// meaning we're trying to traverse through a map's value (invalid!)
+				mapValueKind := leftField.MapValue().Kind()
+				pv.addError(errors, "cannot traverse into map value of type %s", mapValueKind.String())
+				return nil, nil
+			}
 		}
 
 		// Ensure left side is a message (for normal field traversal)

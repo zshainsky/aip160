@@ -157,6 +157,7 @@ func main() {
 | **Enum Support** | ✅ Native with prefix stripping | ⚠️ Limited (string comparison) |
 | **Type Safety** | ✅ Strong proto types | ⚠️ Go reflection |
 | **Repeated Fields** | ✅ HAS operator (`:`) | ❌ Not supported |
+| **Map Fields** | ✅ Full support (key presence, traversal, comparison) | ❌ Not supported |
 | **Nested Messages** | ✅ Unlimited depth | ✅ Unlimited depth |
 | **Struct Tags** | ❌ Not applicable | ✅ `json`, `filter` tags |
 | **Setup** | Requires `.proto` + codegen | Just Go structs |

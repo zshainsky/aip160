@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -753,6 +754,27 @@ func (pv *ProtoValidator) validateTraversal(expr *ast.TraversalExpression, error
 		return
 	}
 
+	// Phase 4: Traversal Restrictions per AIP-160
+	
+	// Restriction 1: Block dot traversal through repeated fields
+	// Per AIP-160: "The . operator must not be used to traverse through a repeated field"
+	// Example: emails.address = "test" is INVALID (use emails:address:"test" instead)
+	if leftField.IsList() {
+		fieldPath := pv.getFieldPath(expr.Left)
+		pv.addError(errors, "cannot use dot operator to traverse through repeated field '%s', use HAS operator (:) instead", fieldPath)
+		return
+	}
+
+	// Restriction 2: Block array index access via numeric field names
+	// Per AIP-160: "e.0.foo = 42 and e[0].foo = 42 are not valid filters"
+	// Example: items.0 = "first" is INVALID
+	if rightIdent, ok := expr.Right.(*ast.Identifier); ok {
+		if isNumericFieldName(rightIdent.Value) {
+			pv.addError(errors, "array index access is not supported (e.g., e.0.foo), use HAS operator to test any element")
+			return
+		}
+	}
+
 	// Ensure the left field is a message type (can be traversed)
 	if !pv.requireMessageKind(leftField, expr.Left, errors) {
 		return
@@ -1055,6 +1077,18 @@ func isStarLiteral(node ast.Node) bool {
 		return ident.Value == "*"
 	}
 	return false
+}
+
+// isNumericFieldName checks if a field name is a number (array index).
+// Per AIP-160: "e.0.foo = 42 and e[0].foo = 42 are not valid filters"
+// Returns true if the name is purely numeric (e.g., "0", "1", "42").
+func isNumericFieldName(name string) bool {
+	if name == "" {
+		return false
+	}
+	// Check if field name is a valid number
+	_, err := strconv.Atoi(name)
+	return err == nil
 }
 
 // === Negative Literal Helpers (Cycle 7B) ===

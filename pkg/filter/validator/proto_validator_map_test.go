@@ -30,8 +30,8 @@ func TestProtoValidator_Map_KeyPresence(t *testing.T) {
 		{"int64 key map - numeric key", `id_counts:999`, false, ""},
 
 		// Invalid - not a map
-		{"not a map field", `name:key`, true, "not a map"},
-		{"not a map - int field", `age:key`, true, "not a map"},
+		{"not a map field", `name:key`, true, "repeated field or map"},
+		{"not a map - int field", `age:key`, true, "repeated field or map"},
 
 		// Invalid - field doesn't exist
 		{"nonexistent map", `nonexistent:key`, true, "does not exist"},

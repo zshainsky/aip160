@@ -179,8 +179,21 @@ func (pv *ProtoValidator) addError(errors *[]error, format string, args ...inter
 
 // validateIdentifier checks if a field exists in the message descriptor.
 func (pv *ProtoValidator) validateIdentifier(name string, errors *[]error) {
-	if _, ok := pv.findFieldByName(pv.descriptor, name); !ok {
+	fieldDesc, ok := pv.findFieldByName(pv.descriptor, name)
+	if !ok {
 		pv.addError(errors, "field '%s' does not exist in message %s", name, pv.descriptor.Name())
+		return
+	}
+	
+	// Bare identifiers for maps and repeated fields are ambiguous
+	// Per AIP-160: these require an operator (: for HAS, = for comparison)
+	if fieldDesc.IsMap() {
+		pv.addError(errors, "map field '%s' requires an operator (use ':' for presence check or comparison operators)", name)
+		return
+	}
+	if fieldDesc.IsList() {
+		pv.addError(errors, "repeated field '%s' requires an operator (use ':' for HAS operator)", name)
+		return
 	}
 }
 
@@ -1173,6 +1186,12 @@ func isValidRFC3339(value string) bool {
 //   settings:timeout    → check if string key "timeout" exists
 //   id_names:100        → check if int32 key 100 exists (100 is number literal)
 func (pv *ProtoValidator) validateMapKeyPresence(fieldDesc protoreflect.FieldDescriptor, keyExpr ast.Node, errors *[]error) {
+	// Special case: Star operator (*) checks if map is present (has any entries)
+	// Per AIP-160: p:* is true if map field p is present (non-empty)
+	if isStarLiteral(keyExpr) {
+		return // Valid: map presence check
+	}
+	
 	// Get map key and value types
 	mapKeyKind := fieldDesc.MapKey().Kind()
 	

@@ -401,6 +401,20 @@ func (pv *ProtoValidator) validateMapKind(expr *ast.ComparisonExpression, fieldD
 		return true, false
 	}
 	
+	// Check operator restrictions for bool and enum map values
+	// (Same restrictions as regular fields)
+	if mapValueKind == protoreflect.BoolKind || mapValueKind == protoreflect.EnumKind {
+		if !pv.isValidOperatorForKind(expr.Operator, mapValueKind) {
+			valueType := "boolean"
+			if mapValueKind == protoreflect.EnumKind {
+				valueType = "enum"
+			}
+			pv.addError(errors, "map '%s' has %s values, operator '%s' not supported (only = and != allowed)",
+				fieldDesc.Name(), valueType, expr.Operator)
+			return true, false
+		}
+	}
+	
 	// Validate numeric ranges for integer map values
 	if isProtoIntegerKind(mapValueKind) {
 		if numLit, ok := expr.Right.(*ast.NumberLiteral); ok {

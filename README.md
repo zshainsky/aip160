@@ -35,6 +35,29 @@ aip160/
 go get github.com/zshainsky/aip160
 ```
 
+## Protobuf Code Generation
+
+If you're using ProtoValidator and need to generate Go code from `.proto` files:
+
+```bash
+# Install protoc-gen-go if not already installed
+go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+
+# Generate Go code from your proto file
+protoc --go_out=. --go_opt=paths=source_relative \
+    your_proto_file.proto
+```
+
+**Example with the testdata proto:**
+```bash
+cd pkg/filter/validator/testdata
+protoc --go_out=. --go_opt=paths=source_relative \
+    --go_opt=Mtestdata.proto=github.com/zshainsky/aip160/pkg/filter/validator/testdata \
+    testdata.proto
+```
+
+This generates `testdata.pb.go` with the Go types needed for ProtoValidator.
+
 ## Usage Examples
 
 Once you've completed the tutorial, you can use the AIP-160 filter package in your applications.

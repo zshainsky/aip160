@@ -51,9 +51,7 @@ protoc --go_out=. --go_opt=paths=source_relative \
 **Example with the testdata proto:**
 ```bash
 cd pkg/filter/validator/testdata
-protoc --go_out=. --go_opt=paths=source_relative \
-    --go_opt=Mtestdata.proto=github.com/zshainsky/aip160/pkg/filter/validator/testdata \
-    testdata.proto
+protoc --go_out=. --go_opt=paths=source_relative testdata.proto
 ```
 
 This generates `testdata.pb.go` with the Go types needed for ProtoValidator.

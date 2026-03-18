@@ -52,19 +52,17 @@ From the testdata directory:
 
 ```bash
 cd pkg/filter/validator/testdata
-
-protoc --go_out=. --go_opt=paths=source_relative \
-    --go_opt=Mtestdata.proto=github.com/zshainsky/aip160/pkg/filter/validator/testdata \
-    testdata.proto
+protoc --go_out=. --go_opt=paths=source_relative testdata.proto
 ```
 
 Or from the repository root:
 
 ```bash
 protoc --go_out=. --go_opt=paths=source_relative \
-    --go_opt=Mpkg/filter/validator/testdata/testdata.proto=github.com/zshainsky/aip160/pkg/filter/validator/testdata \
     pkg/filter/validator/testdata/testdata.proto
 ```
+
+> **Note**: The `go_package` option in `testdata.proto` handles import path mapping automatically, so no `M` flag is needed.
 
 ### Verify Generation
 

@@ -548,7 +548,7 @@ NOT labels:env                           // ✓ Negation of map key presence
 
 ### ✅ Enum Validation with Prefix Stripping
 
-ProtoValidator supports flexible enum matching:
+ProtoValidator supports flexible enum matching with **optional prefix stripping** (enabled by default):
 
 ```protobuf
 enum UserStatus {
@@ -558,21 +558,40 @@ enum UserStatus {
 }
 ```
 
+**With Prefix Stripping Enabled (Default):**
 ```go
-// All valid (with default prefix stripping)
-status = "ACTIVE"              // ✓ Prefix stripped
+// Both forms work:
+status = "ACTIVE"              // ✓ Prefix stripped (USER_STATUS_ + ACTIVE)
 status = "USER_STATUS_ACTIVE"  // ✓ Exact match
 
 // Invalid
 status = "INVALID"             // ✗ Not a valid enum value
 ```
 
-**Disable prefix stripping:**
+**Disable prefix stripping to require exact enum values:**
 ```go
 v := validator.NewProtoValidator(msgDesc, 
     validator.WithEnumPrefixStripping(false))
-// Now only "USER_STATUS_ACTIVE" is valid
+
+// Now only exact matches work:
+status = "USER_STATUS_ACTIVE"  // ✓ Exact match
+status = "ACTIVE"              // ✗ Prefix-stripped form rejected
 ```
+
+**Why Enable Prefix Stripping?**
+- **User-Friendly:** Non-technical users can write simpler, more natural filters
+- **Aligns with AIP-160:** Filters should be accessible to diverse audiences
+- **Backward Compatible:** Exact matches always work regardless of setting
+
+**Edge Case - Enums Without Prefix:**
+```protobuf
+enum Result {
+  RESULT_UNSPECIFIED = 0;
+  SUCCESS = 1;          // No prefix
+  FAILED = 2;           // No prefix
+}
+```
+ProtoValidator correctly handles unprefixed values - `result = "SUCCESS"` works as an exact match.
 
 ### ✅ Operator Restrictions
 

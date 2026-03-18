@@ -298,7 +298,7 @@ func TestNestedTraversalExpression(t *testing.T) {
 		},
 	}
 
-	expected := "user.address.city"
+	expected := "((user.address).city)"
 	if expr.String() != expected {
 		t.Errorf("String() = %q, want %q", expr.String(), expected)
 	}
@@ -322,7 +322,7 @@ func TestHasExpression(t *testing.T) {
 		t.Errorf("TokenLiteral() = %q, want %q", expr.TokenLiteral(), ":")
 	}
 
-	expected := "tags:urgent"
+	expected := "(tags:urgent)"
 	if expr.String() != expected {
 		t.Errorf("String() = %q, want %q", expr.String(), expected)
 	}

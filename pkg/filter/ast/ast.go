@@ -234,7 +234,7 @@ func (h *HasExpression) TokenLiteral() string { return h.Token.Literal }
 // TODO: Implement String() method
 // Hint: Format should be "<collection>:<member>" - NO parentheses
 func (h *HasExpression) String() string {
-	//If collection is a traversal, wrap it separately
+	// If collection is a traversal, wrap it separately
 	if _, ok := h.Collection.(*TraversalExpression); ok {
 		return fmt.Sprintf("(%s):%s", h.Collection.String(), h.Member.String())
 	}

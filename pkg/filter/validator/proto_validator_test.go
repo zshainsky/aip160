@@ -10,8 +10,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-// Cycle 7B: Parser now supports negative literals
-// Tests verify:
+// Tests verify negative literal handling:
 //   - Signed integer types (int32, int64, sint32, sint64, sfixed32, sfixed64) accept negatives
 //   - Unsigned integer types (uint32, uint64, fixed32, fixed64) reject negatives
 //   - Float types (float, double) accept negative decimals
@@ -34,8 +33,7 @@ func validateProtoFilter(t *testing.T, filterStr string, msgDesc protoreflect.Me
 	return validator.Validate(ast)
 }
 
-// TestProtoValidator_FieldExists tests that validation passes for existing fields
-// 🔴 RED: This test should FAIL initially because validator is just a stub
+// TestProtoValidator_FieldExists tests that validation passes for existing fields.
 func TestProtoValidator_FieldExists(t *testing.T) {
 	testProtoData := &testdata.TestProtoData{}
 	msgDesc := testProtoData.ProtoReflect().Descriptor()
@@ -59,8 +57,7 @@ func TestProtoValidator_FieldExists(t *testing.T) {
 	}
 }
 
-// TestProtoValidator_FieldDoesNotExist tests that validation fails for non-existent fields
-// 🔴 RED: This test should FAIL initially because validator returns empty errors
+// TestProtoValidator_FieldDoesNotExist tests that validation fails for non-existent fields.
 func TestProtoValidator_FieldDoesNotExist(t *testing.T) {
 	testProtoData := &testdata.TestProtoData{}
 	msgDesc := testProtoData.ProtoReflect().Descriptor()
@@ -79,8 +76,7 @@ func TestProtoValidator_FieldDoesNotExist(t *testing.T) {
 	}
 }
 
-// TestProtoValidator_MultipleFields tests validation with multiple field references
-// 🔴 RED: This test should FAIL initially
+// TestProtoValidator_MultipleFields tests validation with multiple field references.
 func TestProtoValidator_MultipleFields(t *testing.T) {
 	testProtoData := &testdata.TestProtoData{}
 	msgDesc := testProtoData.ProtoReflect().Descriptor()
@@ -102,8 +98,7 @@ func TestProtoValidator_MultipleFields(t *testing.T) {
 	}
 }
 
-// TestProtoValidator_MultipleInvalidFields tests that all invalid fields are reported
-// 🔴 RED: This test should FAIL initially
+// TestProtoValidator_MultipleInvalidFields tests that all invalid fields are reported.
 func TestProtoValidator_MultipleInvalidFields(t *testing.T) {
 	testProtoData := &testdata.TestProtoData{}
 	msgDesc := testProtoData.ProtoReflect().Descriptor()
@@ -116,7 +111,7 @@ func TestProtoValidator_MultipleInvalidFields(t *testing.T) {
 }
 
 // ============================================================================
-// TDD Cycle 2: Type Compatibility Tests
+// Type compatibility tests for all protobuf scalar types.
 // ============================================================================
 
 // TestProtoValidator_TypeCompatibility_ValidTypes tests valid type combinations
@@ -142,7 +137,7 @@ func TestProtoValidator_ScientificNotation(t *testing.T) {
 		// but still reject actual fractional values
 		{"uint64 with fractional value", `balance = 123.45`, false},
 
-		// Negative scientific notation (Cycle 7B)
+		// Negative scientific notation
 		{"float with negative scientific", `score = -2.997e9`, true},
 		// TODO: Parser evaluates -1.5e2 to -150.0, losing fractional coefficient info
 		// Per AIP-160, should reject fractional coefficient on int fields even if result is integer
@@ -194,7 +189,7 @@ func TestProtoValidator_TypeCompatibility_ValidTypes(t *testing.T) {
 		// Standard signed integers
 		{"int32 field with integer literal", `age = 25`},
 		{"int64 field with integer literal", `user_id = 12345`},
-		// Negative literals for signed types (Cycle 7B)
+		// Negative literals for signed types
 		{"int32 field with negative literal", `age = -10`},
 		{"int64 field with negative literal", `user_id = -999`},
 
@@ -205,7 +200,7 @@ func TestProtoValidator_TypeCompatibility_ValidTypes(t *testing.T) {
 		// Signed integers (optimized for negatives)
 		{"sint32 field with integer literal", `temperature = 72`},
 		{"sint64 field with integer literal", `offset = 1000`},
-		// Negative literals for sint types - optimized for negative values via ZigZag encoding (Cycle 7B)
+		// Negative literals for sint types - optimized for negative values via ZigZag encoding
 		{"sint32 field with negative literal", `temperature = -40`},
 		{"sint64 field with negative literal", `offset = -12345`},
 
@@ -216,7 +211,7 @@ func TestProtoValidator_TypeCompatibility_ValidTypes(t *testing.T) {
 		// Fixed-width signed integers
 		{"sfixed32 field with integer literal", `sfixed_coord_x = 100`},
 		{"sfixed64 field with integer literal", `sfixed_coord_y = 200`},
-		// Negative literals for sfixed types (Cycle 7B)
+		// Negative literals for sfixed types
 		{"sfixed32 field with negative literal", `sfixed_coord_x = -100`},
 		{"sfixed64 field with negative literal", `sfixed_coord_y = -200`},
 
@@ -225,7 +220,7 @@ func TestProtoValidator_TypeCompatibility_ValidTypes(t *testing.T) {
 		{"float field with integer literal", `score = 42`},
 		{"double field with float literal", `rating = 4.5`},
 		{"double field with integer literal", `rating = 5`},
-		// Negative literals for float types (Cycle 7B)
+		// Negative literals for float types
 		{"float field with negative literal", `score = -3.14`},
 		{"double field with negative literal", `rating = -4.5`},
 	}
@@ -272,7 +267,7 @@ func TestProtoValidator_TypeCompatibility_InvalidTypes(t *testing.T) {
 		{"uint32 field with boolean literal", `points = false`},
 		{"uint64 field with string literal", `balance = "99999"`},
 		{"uint64 field with float literal", `balance = 999.99`},
-		// Negative literals on unsigned fields should fail (Cycle 7B)
+		// Negative literals on unsigned fields should fail
 		{"uint32 field with negative literal", `points = -100`},
 		{"uint64 field with negative literal", `balance = -999`},
 		{"fixed32 field with negative literal", `fixed_id = -100`},
@@ -302,7 +297,7 @@ func TestProtoValidator_TypeCompatibility_InvalidTypes(t *testing.T) {
 		{"double field with string literal", `rating = "4.5"`},
 		{"double field with boolean literal", `rating = false`},
 
-		// Star operator errors - bare star only valid with HAS (:), not comparisons (Cycle 7D)
+		// Star operator errors - bare star only valid with HAS (:), not comparisons
 		{"bare star with equals", `name = *`},
 		{"bare star with not equals", `age != *`},
 	}
@@ -318,7 +313,7 @@ func TestProtoValidator_TypeCompatibility_InvalidTypes(t *testing.T) {
 }
 
 // ============================================================================
-// TDD Cycle 3: Enum Validation Tests (RED Phase)
+// Enum Validation Tests
 // ============================================================================
 
 // TestProtoValidator_EnumValidation_ValidValues tests that enum fields
@@ -452,7 +447,7 @@ func TestProtoValidator_EnumValidation_NonPrefixedEnum_InvalidValues(t *testing.
 	}
 }
 
-// === Nested Traversal Tests (TDD Cycle 5) ===
+// === Nested Traversal Tests ===
 
 // TestProtoValidator_NestedTraversal_Valid tests valid nested field access.
 // Tests one-level, two-level, and three-level deep nesting with all scalar types.
@@ -592,10 +587,10 @@ func TestProtoValidator_NestedTraversal_TypeValidation(t *testing.T) {
 }
 
 // =============================================================================
-// TDD Cycle 6: HAS Operator and Repeated Field Validation
+// HAS Operator and Repeated Field Validation
 // =============================================================================
 
-// Phase 6A RED: TestProtoValidator_RepeatedField_RejectComparisons
+// TestProtoValidator_RepeatedField_RejectComparisons
 //
 // AIP-160 states: "The . operator must not be used to traverse through a repeated field"
 // and the HAS operator (:) should be used instead for repeated fields.
@@ -604,7 +599,6 @@ func TestProtoValidator_NestedTraversal_TypeValidation(t *testing.T) {
 // when used on repeated fields. Users should get a clear error directing them to use
 // the HAS operator (:) instead.
 //
-// Expected: These tests should FAIL (RED phase) because validateComparison() doesn't
 // yet check for repeated fields using fieldDesc.IsList().
 func TestProtoValidator_RepeatedField_RejectComparisons(t *testing.T) {
 	testProtoData := &testdata.TestProtoData{}
@@ -627,7 +621,6 @@ func TestProtoValidator_RepeatedField_RejectComparisons(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			errs := validateProtoFilter(t, tt.filter, msgDesc)
-			// RED PHASE: These should FAIL because we haven't implemented the check yet
 			if len(errs) == 0 {
 				t.Errorf("Expected error for comparison on repeated field '%s', got none", tt.filter)
 			} else {
@@ -647,7 +640,7 @@ func TestProtoValidator_RepeatedField_RejectComparisons(t *testing.T) {
 	}
 }
 
-// Phase 6B RED: TestProtoValidator_RepeatedField_BasicHas
+// TestProtoValidator_RepeatedField_BasicHas
 //
 // AIP-160 requires the HAS operator (:) for repeated fields:
 // - r:"value" - True if repeated field contains "value"
@@ -656,7 +649,6 @@ func TestProtoValidator_RepeatedField_RejectComparisons(t *testing.T) {
 //
 // This test validates basic HAS operator functionality on repeated scalar fields.
 //
-// Expected: These tests should FAIL (RED phase) because validateHas() doesn't exist yet
 // and validateNode() doesn't have a case for ast.HasExpression.
 func TestProtoValidator_RepeatedField_BasicHas(t *testing.T) {
 	testProtoData := &testdata.TestProtoData{}
@@ -676,7 +668,7 @@ func TestProtoValidator_RepeatedField_BasicHas(t *testing.T) {
 		{"repeated int has", `scores:100`, true, 0},
 		{"repeated int has no match", `scores:999`, true, 0}, // Valid syntax
 
-		// Star operator - presence check (Cycle 7D)
+		// Star operator - presence check
 		{"repeated string star", `tags:*`, true, 0},
 		{"repeated int star", `scores:*`, true, 0},
 	}
@@ -685,7 +677,6 @@ func TestProtoValidator_RepeatedField_BasicHas(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			errs := validateProtoFilter(t, tt.filter, msgDesc)
 
-			// RED PHASE: These should FAIL because validateHas() doesn't exist
 			if tt.valid && len(errs) != tt.errorCount {
 				t.Errorf("Expected %d errors for valid HAS '%s', got %d: %v",
 					tt.errorCount, tt.filter, len(errs), errs)
@@ -697,7 +688,7 @@ func TestProtoValidator_RepeatedField_BasicHas(t *testing.T) {
 	}
 }
 
-// Phase 6C RED: TestProtoValidator_RepeatedEnum_Has
+// TestProtoValidator_RepeatedEnum_Has
 //
 // AIP-160 HAS operator should work with repeated enum fields, supporting both:
 // - Prefixed values: statuses:"TASK_STATUS_ACTIVE"
@@ -705,7 +696,6 @@ func TestProtoValidator_RepeatedField_BasicHas(t *testing.T) {
 //
 // This reuses the existing enum validation logic with prefix stripping.
 //
-// Expected: These tests should FAIL (RED phase) because validateHas() doesn't
 // yet handle EnumKind elements.
 func TestProtoValidator_RepeatedEnum_Has(t *testing.T) {
 	testProtoData := &testdata.TestProtoData{}
@@ -735,7 +725,6 @@ func TestProtoValidator_RepeatedEnum_Has(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			errs := validateProtoFilter(t, tt.filter, msgDesc)
 
-			// RED PHASE: These should FAIL because enum validation not in validateHas yet
 			if tt.valid && len(errs) != tt.errorCount {
 				t.Errorf("Expected %d errors for valid enum HAS '%s', got %d: %v",
 					tt.errorCount, tt.filter, len(errs), errs)
@@ -747,7 +736,7 @@ func TestProtoValidator_RepeatedEnum_Has(t *testing.T) {
 	}
 }
 
-// Phase 6D RED: TestProtoValidator_RepeatedMessage_NestedHas
+// TestProtoValidator_RepeatedMessage_NestedHas
 //
 // AIP-160 supports nested HAS on repeated messages:
 // - emails.address:"test" - True if emails contains element where address="test"
@@ -756,7 +745,6 @@ func TestProtoValidator_RepeatedEnum_Has(t *testing.T) {
 // This is the most complex HAS scenario: traversing INTO a repeated message field
 // to check if any element has a matching nested field value.
 //
-// Expected: These tests should FAIL (RED phase) because validateHas() doesn't
 // handle TraversalExpression on the collection side yet.
 func TestProtoValidator_RepeatedMessage_NestedHas(t *testing.T) {
 	testProtoData := &testdata.TestProtoData{}
@@ -780,7 +768,7 @@ func TestProtoValidator_RepeatedMessage_NestedHas(t *testing.T) {
 		{"3-level to repeated", `nested.leaf.leaf_tags:"critical"`, true, 0},
 		{"3-level to repeated urgent", `nested.leaf.leaf_tags:"urgent"`, true, 0},
 
-		// Star operator on repeated message (Cycle 7D)
+		// Star operator on repeated message
 		{"repeated message star", `emails:*`, true, 0},
 	}
 
@@ -788,7 +776,6 @@ func TestProtoValidator_RepeatedMessage_NestedHas(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			errs := validateProtoFilter(t, tt.filter, msgDesc)
 
-			// RED PHASE: These should FAIL because nested traversal not supported yet
 			if tt.valid && len(errs) != tt.errorCount {
 				t.Errorf("Expected %d errors for nested HAS '%s', got %d: %v",
 					tt.errorCount, tt.filter, len(errs), errs)
@@ -800,9 +787,9 @@ func TestProtoValidator_RepeatedMessage_NestedHas(t *testing.T) {
 	}
 }
 
-// TestProtoValidator_SingularMessage_Has tests HAS operator with singular message fields (Phase 6E).
+// TestProtoValidator_SingularMessage_Has tests HAS operator with singular message fields.
 
-// TestProtoValidator_SingularMessage_Has tests HAS operator with singular message fields (Phase 6E).
+// TestProtoValidator_SingularMessage_Has tests HAS operator with singular message fields.
 // Per AIP-160: "m:* True if message field m is present (non-default value)".
 func TestProtoValidator_SingularMessage_Has(t *testing.T) {
 	tests := []struct {
@@ -811,7 +798,7 @@ func TestProtoValidator_SingularMessage_Has(t *testing.T) {
 		wantErr bool
 		errCnt  int
 	}{
-		// E1: Singular message presence check with star operator (Cycle 7D)
+		// E1: Singular message presence check with star operator
 		{"message field present", `email:*`, false, 0},
 
 		// E2: HAS operator with nested field in singular message
@@ -822,7 +809,7 @@ func TestProtoValidator_SingularMessage_Has(t *testing.T) {
 		{"comparison on message field", `email.address = "test"`, false, 0}, // Comparison ✅
 		{"has on message field", `email.address:"test"`, false, 0},          // HAS ✅
 
-		// E4: Cannot use star operator on scalar fields (Cycle 7D)
+		// E4: Cannot use star operator on scalar fields
 		{"scalar star invalid", `name:*`, true, 1}, // ❌ name is string, not message
 
 		// E5: Invalid enum values in singular message nested field
@@ -844,7 +831,7 @@ func TestProtoValidator_SingularMessage_Has(t *testing.T) {
 	}
 }
 
-// TestProtoValidator_Has_Integration tests HAS operator with logical operators (Phase 6F).
+// TestProtoValidator_Has_Integration tests HAS operator with logical operators.
 // Per AIP-160: HAS should work seamlessly with AND, OR, NOT in complex expressions.
 func TestProtoValidator_Has_Integration(t *testing.T) {
 	tests := []struct {
@@ -903,7 +890,7 @@ func TestProtoValidator_Has_Integration(t *testing.T) {
 }
 
 // =============================================================================
-// TDD Cycle 8A: Integer Overflow Detection (AIP-160 "Align to Type")
+// Integer Overflow Detection (AIP-160 "Align to Type")
 // =============================================================================
 
 // TestProtoValidator_IntegerBoundaries tests integer overflow detection.
@@ -925,8 +912,6 @@ func TestProtoValidator_Has_Integration(t *testing.T) {
 // represent all int64/uint64 values precisely. For example, MaxInt64+1 equals MaxInt64
 // in float64. This is acceptable - we catch clearly invalid values (e.g. MaxInt32+1000),
 // not edge cases at exact boundaries.
-//
-// 🔴 RED: These tests should FAIL initially - overflow detection not yet implemented
 func TestProtoValidator_IntegerBoundaries(t *testing.T) {
 	msgDesc := (&testdata.TestProtoData{}).ProtoReflect().Descriptor()
 

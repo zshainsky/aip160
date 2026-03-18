@@ -71,9 +71,7 @@ func (p *Parser) Errors() []string {
 
 // peekError adds an error when the peek token doesn't match expectations
 func (p *Parser) peekError(t lexer.TokenType) {
-	// TODO: Create error message: "expected next token to be X, got Y instead"
 	err := fmt.Sprintf("expected next token to be %s, got %s instead", t, p.peekToken)
-	// TODO: Append to p.errors
 	p.errors = append(p.errors, err)
 }
 
@@ -178,7 +176,6 @@ func (p *Parser) parseComparison() ast.Expression {
 	//     create ComparisonExpression node, return it
 	//   - If no: return just the left value (allows bare identifiers)
 
-	// TODO (Module 5): For proper precedence, call parseHasExpression() instead of parseValue()
 	// Has operator sits between comparison and value in precedence
 	left := p.parseHasExpression()
 	if p.isComparisonOperator(p.currentToken.Type) {
@@ -231,7 +228,7 @@ func (p *Parser) parseValue() ast.Expression {
 	case lexer.LPAREN:
 		return p.parseGroupedExpression()
 	case lexer.MINUS:
-		// Handle unary minus: negative literals or negation (Cycle 7A)
+		// Handle unary minus: negative literals or negation
 		return p.parseMinus()
 	default:
 		msg := fmt.Sprintf("unexpected token: %s", p.currentToken.Type)
@@ -284,7 +281,7 @@ func (p *Parser) parseDuration() ast.Expression {
 	// Extract numeric part (remove 's' suffix)
 	// Token.Literal includes suffix: "20s" -> need to parse "20"
 	numStr := strings.TrimSuffix(p.currentToken.Literal, "s")
-	
+
 	val, err := strconv.ParseFloat(numStr, 64)
 	if err != nil {
 		msg := fmt.Sprintf("could not parse %q as duration", p.currentToken.Literal)
@@ -294,7 +291,7 @@ func (p *Parser) parseDuration() ast.Expression {
 
 	lit.Value = val
 	lit.Unit = "s" // Always "s" for seconds per AIP-160
-	
+
 	p.nextToken()
 	return lit
 }
@@ -335,7 +332,6 @@ func (p *Parser) parseIdentifier() ast.Expression {
 	// Call nextToken() to advance
 	p.nextToken()
 
-	// TODO (Module 5 - Task 3): Add function call detection
 	// Check if current token (after advancing past identifier) is LPAREN
 	// If yes, this is a function call - call parseFunctionCall helper
 	// Pass the saved identifier token and value to the helper
@@ -344,7 +340,6 @@ func (p *Parser) parseIdentifier() ast.Expression {
 		return p.parseFunctionCall(identToken, identLiternal)
 	}
 
-	// TODO (Module 5 - Task 1): Add field traversal support
 	// After handling function calls, check if current token is DOT
 	// If yes, enter loop to build TraversalExpression chain
 	var left ast.Expression = &ast.Identifier{
@@ -375,7 +370,6 @@ func (p *Parser) parseIdentifier() ast.Expression {
 	return left
 }
 
-// TODO (Module 5 - Task 2): Implement parseHasExpression
 // This function handles the has operator (:) for collection membership
 // Should be called from parseComparison instead of parseValue
 // Pattern similar to parseComparison:
@@ -401,7 +395,6 @@ func (p *Parser) parseHasExpression() ast.Expression {
 	return left
 }
 
-// TODO (Module 5 - Task 3): Implement parseFunctionCall
 // This helper parses function calls: identifier followed by (arguments)
 // Parameters: identToken (saved token), functionName (string)
 // Steps:
@@ -462,7 +455,7 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 	return expression
 }
 
-// parseMinus dispatches between negative number literals and negation operators (Cycle 7A)
+// parseMinus dispatches between negative number literals and negation operators
 // The MINUS token can represent two distinct operations per AIP-160:
 // 1. Negative number literal: -5, -3.14, -1.5e-3 (when followed by NUMBER)
 // 2. Negation operator: -active, -enabled (shorthand for NOT, when followed by expression)
@@ -478,7 +471,7 @@ func (p *Parser) parseMinus() ast.Expression {
 	return p.parseNegation(minusToken)
 }
 
-// parseNegativeLiteral parses a negative number literal: -5, -3.14, -1.5e-3 (Cycle 7A)
+// parseNegativeLiteral parses a negative number literal: -5, -3.14, -1.5e-3
 // Returns a UnaryExpression with operator "-" and a NumberLiteral as right child
 func (p *Parser) parseNegativeLiteral(minusToken lexer.Token) ast.Expression {
 	numLit := p.parseNumber()
@@ -493,7 +486,7 @@ func (p *Parser) parseNegativeLiteral(minusToken lexer.Token) ast.Expression {
 	}
 }
 
-// parseNegation parses a negation operator: -active, -enabled (Cycle 7A)
+// parseNegation parses a negation operator: -active, -enabled
 // Per AIP-160, - is shorthand for NOT operator
 // Returns a UnaryExpression with operator "-" and the negated expression as right child
 func (p *Parser) parseNegation(minusToken lexer.Token) ast.Expression {

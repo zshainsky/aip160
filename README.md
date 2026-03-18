@@ -165,6 +165,17 @@ go test -cover ./pkg/filter/validator
 go test -v ./pkg/filter/validator
 ```
 
+### Updating Test Protobuf Files
+
+If you modify `pkg/filter/validator/testdata/testdata.proto`, you must regenerate the Go code before running tests:
+
+```bash
+cd pkg/filter/validator/testdata
+protoc --go_out=. --go_opt=paths=source_relative testdata.proto
+```
+
+See the [testdata README](pkg/filter/validator/testdata/README.md) for detailed instructions.
+
 ## License
 
 MIT License - feel free to use this tutorial and code for learning and production use.

@@ -287,7 +287,7 @@ func (pv *ProtoValidator) validateEnumFieldKind(expr *ast.ComparisonExpression, 
 }
 
 // validateWellKnownKind handles google.protobuf.* well-known types.
-// Currently supports: Duration (Phase 1), Timestamp (TODO Phase 2)
+// Currently supports: Duration, Timestamp
 //
 // Bidirectional validation:
 // - Duration fields require Duration literals
@@ -315,7 +315,7 @@ func (pv *ProtoValidator) validateWellKnownKind(expr *ast.ComparisonExpression, 
 		return true, true // Is Duration kind and valid
 	}
 
-	// Case 3: Timestamp field validation (Phase 2)
+	// Timestamp field validation
 	if isTimestampField(fieldDesc) {
 		stringLit, ok := expr.Right.(*ast.StringLiteral)
 		if !ok {
@@ -847,7 +847,7 @@ func (pv *ProtoValidator) getFieldPath(node ast.Node) string {
 // validateHas validates HAS operator expressions (collection:member).
 // Per AIP-160, the HAS operator (:) is used for:
 // - Repeated fields: r:"value" checks if repeated field contains value
-// - Maps: m:key checks if map contains key (TODO v2: not yet implemented)
+// - Maps: m:key checks if map contains key (v2 feature)
 // - Singular messages: m.field:"value" checks nested field
 // - Star operator: m:* checks presence (non-empty/set)
 //

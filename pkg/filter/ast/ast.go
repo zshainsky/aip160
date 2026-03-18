@@ -82,9 +82,7 @@ func (n *NumberLiteral) expressionNode()      {}
 func (n *NumberLiteral) TokenLiteral() string { return n.Token.Literal }
 
 // TODO: Implement String() method
-// Hint: Use fmt.Sprintf() with %g format specifier
 func (n *NumberLiteral) String() string {
-	// TODO: Return the number as a formatted string
 	return fmt.Sprintf("%g", n.Value)
 }
 
@@ -99,7 +97,6 @@ func (b *BooleanLiteral) expressionNode()      {}
 func (b *BooleanLiteral) TokenLiteral() string { return b.Token.Literal }
 
 // TODO: Implement String() method
-// Hint: Return "true" or "false" based on the Value field
 func (b *BooleanLiteral) String() string {
 	if b.Value {
 		return "true"
@@ -131,7 +128,6 @@ func (d *DurationLiteral) String() string {
 func (n *NullLiteral) TokenLiteral() string { return n.Token.Literal }
 
 // TODO: Implement String() method
-// Hint: Just return "null"
 func (n *NullLiteral) String() string {
 	return "null"
 }
@@ -149,10 +145,8 @@ func (c *ComparisonExpression) expressionNode()      {}
 func (c *ComparisonExpression) TokenLiteral() string { return c.Token.Literal }
 
 // TODO: Implement String() method
-// Hint: Format should be "(<left> <operator> <right>)"
 // Remember to call .String() on Left and Right!
 func (c *ComparisonExpression) String() string {
-	// TODO: Return formatted string with parentheses
 	return fmt.Sprintf("(%s %s %s)", c.Left.String(), c.Operator, c.Right.String())
 }
 
@@ -169,9 +163,7 @@ func (l *LogicalExpression) expressionNode()      {}
 func (l *LogicalExpression) TokenLiteral() string { return l.Token.Literal }
 
 // TODO: Implement String() method
-// Hint: Same format as ComparisonExpression: "(<left> <operator> <right>)"
 func (l *LogicalExpression) String() string {
-	// TODO: Return formatted string with parentheses
 	return fmt.Sprintf("(%s %s %s)", l.Left.String(), l.Operator, l.Right.String())
 }
 
@@ -187,9 +179,7 @@ func (u *UnaryExpression) expressionNode()      {}
 func (u *UnaryExpression) TokenLiteral() string { return u.Token.Literal }
 
 // TODO: Implement String() method
-// Hint: Format should be "(<operator><right>)" - no space between operator and right
 func (u *UnaryExpression) String() string {
-	// TODO: Return formatted string with parentheses
 	if u.Operator == "NOT" {
 		return fmt.Sprintf("(%s %s)", u.Operator, u.Right.String())
 	}
@@ -208,7 +198,6 @@ func (t *TraversalExpression) expressionNode()      {}
 func (t *TraversalExpression) TokenLiteral() string { return t.Token.Literal }
 
 // TODO: Implement String() method
-// Hint: Wrap with parentheses to show left-associative grouping structure
 func (t *TraversalExpression) String() string {
 	// If left is a traversal, wrap both the left AND the whole expression
 	// This shows the nested tree structure: ((a.b).c)
@@ -232,7 +221,6 @@ func (h *HasExpression) expressionNode()      {}
 func (h *HasExpression) TokenLiteral() string { return h.Token.Literal }
 
 // TODO: Implement String() method
-// Hint: Format should be "<collection>:<member>" - NO parentheses
 func (h *HasExpression) String() string {
 	// If collection is a traversal, wrap it separately
 	if _, ok := h.Collection.(*TraversalExpression); ok {
@@ -254,11 +242,9 @@ func (f *FunctionCall) expressionNode()      {}
 func (f *FunctionCall) TokenLiteral() string { return f.Token.Literal }
 
 // TODO: Implement String() method
-// Hint: Format should be "<function>(<arg1>, <arg2>, ...)"
 // You'll need to loop through Arguments and call String() on each
 // Then join them with ", " using strings.Join()
 func (f *FunctionCall) String() string {
-	// TODO: Build argument list and return formatted string
 	var args []string
 	for _, arg := range f.Arguments {
 		args = append(args, arg.String())

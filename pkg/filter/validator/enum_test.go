@@ -41,7 +41,6 @@ type TestEntityWithEnum struct {
 
 // Test 1: EnumInfo struct creation
 func TestEnumInfo_Creation(t *testing.T) {
-	// RED: This test will fail until we create the EnumInfo struct
 	enumInfo := &EnumInfo{
 		TypeName: "TestStatus",
 		ValueMap: map[string]int32{
@@ -65,7 +64,6 @@ func TestEnumInfo_Creation(t *testing.T) {
 
 // Test 2: detectEnum returns nil for non-enum field
 func TestDetectEnum_NonEnumField(t *testing.T) {
-	// RED: This test will fail until we implement detectEnum()
 	structType := reflect.TypeOf(TestEntityWithEnum{})
 	nameField, _ := structType.FieldByName("Name") // Name is not an enum
 
@@ -82,7 +80,6 @@ func TestDetectEnum_NonEnumField(t *testing.T) {
 
 // Test 3: detectEnum returns nil when protobuf tag has no enum parameter
 func TestDetectEnum_NoEnumTag(t *testing.T) {
-	// RED: This test validates that fields without enum= parameter are not treated as enums
 	type SimpleStruct struct {
 		Count int32 `protobuf:"varint,1,opt,name=count,proto3" json:"count"` // No enum=
 	}
@@ -103,7 +100,6 @@ func TestDetectEnum_NoEnumTag(t *testing.T) {
 
 // Test 4: detectEnum detects enum from protobuf tag
 func TestDetectEnum_WithProtobufTag(t *testing.T) {
-	// RED: This test will pass once we implement full detection logic
 	structType := reflect.TypeOf(TestEntityWithEnum{})
 	statusField, _ := structType.FieldByName("Status")
 
@@ -128,7 +124,6 @@ func TestDetectEnum_WithProtobufTag(t *testing.T) {
 
 // Test 5: detectEnum with missing companion maps (graceful degradation)
 func TestDetectEnum_MissingCompanionMaps(t *testing.T) {
-	// RED: Test that we handle missing companion maps gracefully
 	type StructWithUnknownEnum struct {
 		// This enum type doesn't have companion maps defined
 		Mystery int32 `protobuf:"varint,1,opt,name=mystery,proto3,enum=unknown.MysteryEnum" json:"mystery"`

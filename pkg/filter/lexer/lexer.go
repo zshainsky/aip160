@@ -118,13 +118,13 @@ func (l *Lexer) NextToken() Token {
 	// first char is digit we have a NUMBER or DURATION
 	if isDigit(l.ch) {
 		numLiteral := l.readNumber()
-		
+
 		// Check for duration suffix 's' (AIP-160: 20s, 1.2s)
 		if l.ch == 's' {
 			l.readChar() // consume 's'
 			return Token{Type: DURATION, Literal: numLiteral + "s"}
 		}
-		
+
 		return Token{Type: NUMBER, Literal: numLiteral}
 	}
 
@@ -159,7 +159,6 @@ func (l *Lexer) readIdentifier() string {
 }
 
 // readNumber reads a number (integer or float)
-// TODO: Implement this method
 // Numbers can be:
 // - Integers: 42
 // - Floats: 3.14

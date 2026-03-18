@@ -81,7 +81,7 @@ type NumberLiteral struct {
 func (n *NumberLiteral) expressionNode()      {}
 func (n *NumberLiteral) TokenLiteral() string { return n.Token.Literal }
 
-// TODO: Implement String() method
+// User friendly string representation
 func (n *NumberLiteral) String() string {
 	return fmt.Sprintf("%g", n.Value)
 }
@@ -96,7 +96,7 @@ type BooleanLiteral struct {
 func (b *BooleanLiteral) expressionNode()      {}
 func (b *BooleanLiteral) TokenLiteral() string { return b.Token.Literal }
 
-// TODO: Implement String() method
+// User friendly string representation
 func (b *BooleanLiteral) String() string {
 	if b.Value {
 		return "true"
@@ -109,7 +109,7 @@ type NullLiteral struct {
 	Token lexer.Token // The NULL token
 }
 
-func (n *NullLiteral) expressionNode()      {}
+func (n *NullLiteral) expressionNode() {}
 
 // DurationLiteral represents a duration value per AIP-160.
 // AIP-160 specifies: "Durations expect a numeric representation followed by an 's' suffix"
@@ -127,7 +127,7 @@ func (d *DurationLiteral) String() string {
 }
 func (n *NullLiteral) TokenLiteral() string { return n.Token.Literal }
 
-// TODO: Implement String() method
+// User friendly string representation
 func (n *NullLiteral) String() string {
 	return "null"
 }
@@ -144,7 +144,7 @@ type ComparisonExpression struct {
 func (c *ComparisonExpression) expressionNode()      {}
 func (c *ComparisonExpression) TokenLiteral() string { return c.Token.Literal }
 
-// TODO: Implement String() method
+// User friendly string representation
 // Remember to call .String() on Left and Right!
 func (c *ComparisonExpression) String() string {
 	return fmt.Sprintf("(%s %s %s)", c.Left.String(), c.Operator, c.Right.String())
@@ -162,7 +162,7 @@ type LogicalExpression struct {
 func (l *LogicalExpression) expressionNode()      {}
 func (l *LogicalExpression) TokenLiteral() string { return l.Token.Literal }
 
-// TODO: Implement String() method
+// User friendly string representation
 func (l *LogicalExpression) String() string {
 	return fmt.Sprintf("(%s %s %s)", l.Left.String(), l.Operator, l.Right.String())
 }
@@ -178,7 +178,7 @@ type UnaryExpression struct {
 func (u *UnaryExpression) expressionNode()      {}
 func (u *UnaryExpression) TokenLiteral() string { return u.Token.Literal }
 
-// TODO: Implement String() method
+// User friendly string representation
 func (u *UnaryExpression) String() string {
 	if u.Operator == "NOT" {
 		return fmt.Sprintf("(%s %s)", u.Operator, u.Right.String())
@@ -197,7 +197,7 @@ type TraversalExpression struct {
 func (t *TraversalExpression) expressionNode()      {}
 func (t *TraversalExpression) TokenLiteral() string { return t.Token.Literal }
 
-// TODO: Implement String() method
+// User friendly string representation
 func (t *TraversalExpression) String() string {
 	// If left is a traversal, wrap both the left AND the whole expression
 	// This shows the nested tree structure: ((a.b).c)
@@ -220,7 +220,7 @@ type HasExpression struct {
 func (h *HasExpression) expressionNode()      {}
 func (h *HasExpression) TokenLiteral() string { return h.Token.Literal }
 
-// TODO: Implement String() method
+// User friendly string representation
 func (h *HasExpression) String() string {
 	// If collection is a traversal, wrap it separately
 	if _, ok := h.Collection.(*TraversalExpression); ok {
@@ -241,7 +241,7 @@ type FunctionCall struct {
 func (f *FunctionCall) expressionNode()      {}
 func (f *FunctionCall) TokenLiteral() string { return f.Token.Literal }
 
-// TODO: Implement String() method
+// User friendly string representation
 // You'll need to loop through Arguments and call String() on each
 // Then join them with ", " using strings.Join()
 func (f *FunctionCall) String() string {

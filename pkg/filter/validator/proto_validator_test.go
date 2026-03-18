@@ -912,7 +912,6 @@ func TestProtoValidator_Has_Integration(t *testing.T) {
 // represent all int64/uint64 values precisely. For example, MaxInt64+1 equals MaxInt64
 // in float64. This is acceptable - we catch clearly invalid values (e.g. MaxInt32+1000),
 // not edge cases at exact boundaries.
-//
 func TestProtoValidator_IntegerBoundaries(t *testing.T) {
 	msgDesc := (&testdata.TestProtoData{}).ProtoReflect().Descriptor()
 

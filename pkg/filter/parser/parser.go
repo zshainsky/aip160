@@ -231,7 +231,7 @@ func (p *Parser) parseValue() ast.Expression {
 	case lexer.LPAREN:
 		return p.parseGroupedExpression()
 	case lexer.MINUS:
-		// Handle unary minus: negative literals or negation (Cycle 7A)
+		// Handle unary minus: negative literals or negation
 		return p.parseMinus()
 	default:
 		msg := fmt.Sprintf("unexpected token: %s", p.currentToken.Type)
@@ -462,7 +462,7 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 	return expression
 }
 
-// parseMinus dispatches between negative number literals and negation operators (Cycle 7A)
+// parseMinus dispatches between negative number literals and negation operators
 // The MINUS token can represent two distinct operations per AIP-160:
 // 1. Negative number literal: -5, -3.14, -1.5e-3 (when followed by NUMBER)
 // 2. Negation operator: -active, -enabled (shorthand for NOT, when followed by expression)
@@ -478,7 +478,7 @@ func (p *Parser) parseMinus() ast.Expression {
 	return p.parseNegation(minusToken)
 }
 
-// parseNegativeLiteral parses a negative number literal: -5, -3.14, -1.5e-3 (Cycle 7A)
+// parseNegativeLiteral parses a negative number literal: -5, -3.14, -1.5e-3
 // Returns a UnaryExpression with operator "-" and a NumberLiteral as right child
 func (p *Parser) parseNegativeLiteral(minusToken lexer.Token) ast.Expression {
 	numLit := p.parseNumber()
@@ -493,7 +493,7 @@ func (p *Parser) parseNegativeLiteral(minusToken lexer.Token) ast.Expression {
 	}
 }
 
-// parseNegation parses a negation operator: -active, -enabled (Cycle 7A)
+// parseNegation parses a negation operator: -active, -enabled
 // Per AIP-160, - is shorthand for NOT operator
 // Returns a UnaryExpression with operator "-" and the negated expression as right child
 func (p *Parser) parseNegation(minusToken lexer.Token) ast.Expression {

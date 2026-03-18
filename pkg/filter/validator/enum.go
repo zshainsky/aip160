@@ -18,10 +18,6 @@ type EnumInfo struct {
 // Returns (EnumInfo, true) if the field is an enum, (nil, false) otherwise.
 //
 // Detection strategy:
-// 1. Check for protobuf tag with enum= parameter
-// 2. Extract enum type name from tag
-// 3. Attempt to locate companion _value map via reflection
-// 4. Return EnumInfo with available data (may have empty ValueMap if maps not found)
 func detectEnum(field reflect.StructField, fieldType reflect.Type) (*EnumInfo, bool) {
 	// Step 1: Check for protobuf tag
 	protobufTag := field.Tag.Get("protobuf")
@@ -78,6 +74,10 @@ func extractEnumFromProtobufTag(tag string) (string, bool) {
 //
 // Note: This uses reflection to access package-level variables. It works because
 // the enum's package is imported by the struct's package (e.g., models imports proto/classification).
+//
+// Current limitation: Reflection-based lookup of package-level variables is complex
+// and not yet implemented. Returns nil for graceful degradation - operator restriction
+// still works without value validation.
 func findCompanionValueMap(fieldType reflect.Type, enumTypeName string) map[string]int32 {
 	// Extract the base type name (last component after final dot)
 	// e.g., "proto.audience.Classification" → "Classification"
@@ -89,17 +89,10 @@ func findCompanionValueMap(fieldType reflect.Type, enumTypeName string) map[stri
 	// Construct the companion map variable name
 	companionMapName := baseTypeName + "_value"
 
-	// TODO: Implement reflection-based lookup of package-level variable
 	// This is complex in Go and requires access to the package's exported variables.
 	// For now, we return nil (graceful degradation - operator restriction still works)
 	//
-	// Future implementation would:
-	// 1. Get package path from fieldType.PkgPath()
-	// 2. Use reflection to find the variable in that package
-	// 3. Type assert to map[string]int32
 	//
-	// This limitation is acceptable for Phase 1 - we can still restrict operators
-	// even without value validation.
 
 	_ = companionMapName // Avoid unused variable warning
 
